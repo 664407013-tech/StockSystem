@@ -4,7 +4,13 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https
 
 // นำ Config เดียวกันมาวางตรงนี้
 const firebaseConfig = {
-  // ... เหมือนไฟล์ auth.js
+  apiKey: "AIzaSyAgMH_X7Vln0WX9xxgBSq7snby82gq54Nc",
+  authDomain: "stocksystem-c88f7.firebaseapp.com",
+  projectId: "stocksystem-c88f7",
+  storageBucket: "stocksystem-c88f7.firebasestorage.app",
+  messagingSenderId: "287552633400",
+  appId: "1:287552633400:web:e81c4f2e94232dd4c044cd",
+  measurementId: "G-N4XN8373HQ"
 };
 
 const app = initializeApp(firebaseConfig);
