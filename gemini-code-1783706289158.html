@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการสต็อกสินค้า</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>ระบบจัดการสต็อก</h1>
+            <button id="logoutBtn" class="btn-danger">ออกจากระบบ</button>
+        </div>
+        <hr>
+        
+        <h2>เพิ่มสินค้าใหม่</h2>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="itemName" placeholder="ชื่อสินค้า">
+            <input type="number" id="itemQty" placeholder="จำนวน">
+            <input type="number" id="itemPrice" placeholder="ราคา">
+            <button id="addBtn">เพิ่มสต็อก</button>
+        </div>
+
+        <h2>รายการสินค้า</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ชื่อสินค้า</th>
+                    <th>จำนวน</th>
+                    <th>ราคา</th>
+                    <th>จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="stockTableBody">
+                <!-- ข้อมูลจะถูกดึงมาใส่ตรงนี้ด้วย JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
