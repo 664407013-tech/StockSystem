@@ -11,24 +11,21 @@ const firebaseConfig = {
   appId: "1:287552633400:web:e81c4f2e94232dd4c044cd",
   measurementId: "G-N4XN8373HQ"
 };
-
-// เริ่มต้นใช้งาน Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ตัวแปรส่วนกลาง
 let myChart = null;
 let products = [];
 let withdrawHistory = []; 
 
-// --- ระบบเปลี่ยนหน้า (Navigation) ---
+// --- ระบบเปลี่ยนหน้าต่าง (Navigation) ---
 document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
         
-        const target = btn.getAttribute('data-target');
         btn.classList.add('active');
+        const target = btn.getAttribute('data-target');
         document.getElementById(target).classList.remove('hidden');
 
         if(window.innerWidth <= 768) {
@@ -51,9 +48,8 @@ function getBase64(file) {
     });
 }
 
-// --- โหลดข้อมูลจาก Firebase (Real-time) ---
+// --- โหลดข้อมูล (Real-time) ---
 function loadData() {
-    // โหลดสินค้า
     onSnapshot(collection(db, "products"), (snapshot) => {
         products = [];
         snapshot.forEach((doc) => {
@@ -62,18 +58,17 @@ function loadData() {
         updateUI();
     });
 
-    // โหลดประวัติการเบิก
     onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
         withdrawHistory = [];
         snapshot.forEach((doc) => {
             withdrawHistory.push({ id: doc.id, ...doc.data() });
         });
-        withdrawHistory.sort((a, b) => b.timestamp - a.timestamp); // เรียงจากใหม่ไปเก่า
+        withdrawHistory.sort((a, b) => b.timestamp - a.timestamp);
         updateUI();
     });
 }
 
-// --- อัปเดตหน้าจอ (UI Update) ---
+// --- อัปเดตหน้าจอ ---
 function updateUI(filteredHistory = null) {
     const tbody = document.getElementById('stockTableBody');
     const select = document.getElementById('withdrawSelect');
@@ -84,9 +79,8 @@ function updateUI(filteredHistory = null) {
     let chartLabels = [];
     let chartData = [];
 
-    // เรนเดอร์สินค้าและตัวเลือกเบิก
+    // เรนเดอร์สินค้า
     products.forEach(p => {
-        // ป้องกันค่า undefined จากข้อมูลเก่า
         const pQty = p.qty || 0;
         const pPrice = p.price || 0;
         const pCode = p.code || '-';
@@ -128,14 +122,14 @@ function updateUI(filteredHistory = null) {
             datasets: [{
                 label: 'จำนวนสินค้าคงเหลือ',
                 data: chartData,
-                backgroundColor: '#6366f1',
-                borderRadius: 8
+                backgroundColor: '#4f46e5',
+                borderRadius: 6
             }]
         },
         options: { responsive: true, maintainAspectRatio: false }
     });
 
-    // อัปเดตประวัติการเบิก (ถ้ามีการค้นหา ให้ใช้ข้อมูลที่ค้นหา ถ้าไม่มีใช้ข้อมูลทั้งหมด)
+    // อัปเดตประวัติการเบิก
     const historyToRender = filteredHistory || withdrawHistory;
     const trackList = document.getElementById('trackingList');
     trackList.innerHTML = '';
@@ -167,15 +161,15 @@ function updateUI(filteredHistory = null) {
     }
 }
 
-// --- ระบบเพิ่มสินค้าลง Firebase ---
+// --- เพิ่มสินค้า ---
 document.getElementById('addBtn').addEventListener('click', async () => {
-    const code = document.getElementById('itemCode').value || '-';
-    const name = document.getElementById('itemName').value;
-    const qty = Number(document.getElementById('itemQty').value) || 0;
-    const price = Number(document.getElementById('itemPrice').value) || 0;
+    const codeVal = document.getElementById('itemCode').value.trim();
+    const nameVal = document.getElementById('itemName').value.trim();
+    const qtyVal = Number(document.getElementById('itemQty').value) || 0;
+    const priceVal = Number(document.getElementById('itemPrice').value) || 0;
     const fileInput = document.getElementById('itemImage');
     
-    if(!name) return alert("กรุณากรอกชื่อสินค้าอย่างน้อย");
+    if(!nameVal) return alert("กรุณากรอกชื่อสินค้าอย่างน้อยครับ");
 
     const btn = document.getElementById('addBtn');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
@@ -188,10 +182,10 @@ document.getElementById('addBtn').addEventListener('click', async () => {
 
     try {
         await addDoc(collection(db, "products"), {
-            code: code,
-            name: name,
-            qty: qty,
-            price: price,
+            code: codeVal || "-",
+            name: nameVal,
+            qty: qtyVal,
+            price: priceVal,
             image: base64Image
         });
 
@@ -204,14 +198,14 @@ document.getElementById('addBtn').addEventListener('click', async () => {
         alert('เพิ่มสินค้าสำเร็จ');
     } catch (e) {
         console.error("Error adding document: ", e);
-        alert('เกิดข้อผิดพลาดในการบันทึก');
+        alert('เกิดข้อผิดพลาดในการบันทึก: ' + e.message);
     }
 
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกข้อมูล';
     btn.disabled = false;
 });
 
-// --- ระบบลบสินค้า ---
+// --- ลบสินค้า ---
 window.deleteProduct = async function(id) {
     if(confirm('ยืนยันการลบสินค้า?')) {
         try {
@@ -223,11 +217,11 @@ window.deleteProduct = async function(id) {
     }
 }
 
-// --- ระบบเบิกสินค้า (แก้ไข Error undefined แล้ว) ---
+// --- เบิกสินค้า ---
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
-    const note = document.getElementById('withdrawNote').value || 'ไม่ระบุ';
+    const note = document.getElementById('withdrawNote').value.trim();
 
     if(!id || qty <= 0) return alert('ข้อมูลการเบิกไม่ถูกต้อง');
 
@@ -240,11 +234,11 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.disabled = true;
 
     try {
-        // 1. อัปเดตสต็อกใน Firebase
+        // 1. ตัดสต็อก
         const newQty = product.qty - qty;
         await updateDoc(doc(db, "products", id), { qty: newQty });
 
-        // 2. บันทึกประวัติการเบิก (ป้องกันค่า undefined)
+        // 2. บันทึกประวัติ
         const docId = 'DOC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         const now = new Date();
         const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -252,19 +246,18 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
         await addDoc(collection(db, "withdraw_history"), {
             docId: docId,
             itemName: product.name || 'ไม่ระบุ',
-            code: product.code || '-',  // <-- ตรงนี้คือจุดที่แก้ Error ของคุณ
+            code: product.code || '-',
             qty: qty,
-            note: note,
+            note: note || 'ไม่ระบุ',
             date: dateStr,
             timestamp: Date.now()
         });
 
-        // ล้างฟอร์ม
         document.getElementById('withdrawQty').value = '';
         document.getElementById('withdrawNote').value = '';
         
         if(confirm('เบิกสำเร็จ! ต้องการพิมพ์ใบเบิกเป็น PDF เลยหรือไม่?')) {
-            window.printPDF(docId, product.name, product.code || '-', qty, note, dateStr);
+            window.printPDF(docId, product.name, product.code || '-', qty, note || 'ไม่ระบุ', dateStr);
         }
     } catch (e) {
         console.error("Error updating: ", e);
@@ -275,8 +268,8 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.disabled = false;
 });
 
-// --- ระบบค้นหาตามวันที่ ---
-document.querySelector('#dashboard-view button.bg-indigo-600').addEventListener('click', () => {
+// --- ค้นหาตามวันที่ ---
+document.getElementById('searchDateBtn').addEventListener('click', () => {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
     
@@ -284,20 +277,19 @@ document.querySelector('#dashboard-view button.bg-indigo-600').addEventListener(
         const start = new Date(startDate).setHours(0,0,0,0);
         const end = new Date(endDate).setHours(23,59,59,999);
         
-        // คัดกรองประวัติที่อยู่ในช่วงวันที่กำหนด
         const filtered = withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
-        updateUI(filtered); // อัปเดตเฉพาะรายการค้นหา
+        updateUI(filtered);
     } else {
-        updateUI(); // ถ้าไม่ได้เลือกวันที่ ให้แสดงทั้งหมด
+        updateUI();
     }
 });
 
-// --- ระบบพิมพ์ PDF ---
+// --- สร้าง PDF ---
 window.printPDF = function(docId, itemName, code, qty, user, date) {
     document.getElementById('pdfDocId').innerText = docId;
     document.getElementById('pdfUser').innerText = user;
     document.getElementById('pdfDate').innerText = date;
-    document.getElementById('pdfItemCode').innerText = code || '-';
+    document.getElementById('pdfItemCode').innerText = code;
     document.getElementById('pdfItemName').innerText = itemName;
     document.getElementById('pdfItemQty').innerText = qty;
 
@@ -317,5 +309,5 @@ window.printPDF = function(docId, itemName, code, qty, user, date) {
     });
 }
 
-// เริ่มต้นโหลดข้อมูล
+// เริ่มต้นระบบ
 loadData();
