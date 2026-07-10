@@ -2,39 +2,111 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>จัดการสต็อกสินค้า</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Stock System</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1>ระบบจัดการสต็อก</h1>
-            <button id="logoutBtn" class="btn-danger">ออกจากระบบ</button>
-        </div>
-        <hr>
-        
-        <h2>เพิ่มสินค้าใหม่</h2>
-        <div style="display: flex; gap: 10px;">
-            <input type="text" id="itemName" placeholder="ชื่อสินค้า">
-            <input type="number" id="itemQty" placeholder="จำนวน">
-            <input type="number" id="itemPrice" placeholder="ราคา">
-            <button id="addBtn">เพิ่มสต็อก</button>
-        </div>
+    <div class="app-container">
+        <!-- แถบเมนูด้านข้าง -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-box-open"></i>
+                <h2>StockPro</h2>
+            </div>
+            <nav class="menu">
+                <a href="#" class="menu-item active" data-target="dashboard-view"><i class="fas fa-chart-pie"></i> ภาพรวม (Dashboard)</a>
+                <a href="#" class="menu-item" data-target="stock-view"><i class="fas fa-boxes"></i> จัดการสต็อก</a>
+                <a href="#" class="menu-item" data-target="withdraw-view"><i class="fas fa-hand-holding-box"></i> เบิกสินค้า</a>
+            </nav>
+            <div class="bottom-menu">
+                <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+            </div>
+        </aside>
 
-        <h2>รายการสินค้า</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>ชื่อสินค้า</th>
-                    <th>จำนวน</th>
-                    <th>ราคา</th>
-                    <th>จัดการ</th>
-                </tr>
-            </thead>
-            <tbody id="stockTableBody">
-                <!-- ข้อมูลจะถูกดึงมาใส่ตรงนี้ด้วย JS -->
-            </tbody>
-        </table>
+        <!-- พื้นที่แสดงเนื้อหาหลัก -->
+        <main class="main-content">
+            <!-- หน้าภาพรวม (Dashboard) -->
+            <section id="dashboard-view" class="view-section active">
+                <div class="header">
+                    <h1>ภาพรวมระบบสต็อก</h1>
+                </div>
+                <div class="summary-cards">
+                    <div class="card stat-card">
+                        <div class="stat-info">
+                            <h3>จำนวนสินค้าทั้งหมด (รายการ)</h3>
+                            <h2 id="totalItems">0</h2>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-cubes"></i></div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-info">
+                            <h3>มูลค่ารวมทั้งหมด (บาท)</h3>
+                            <h2 id="totalValue">0</h2>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+                    </div>
+                </div>
+                <div class="card chart-container">
+                    <h3>กราฟแสดงจำนวนสินค้าคงเหลือ</h3>
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </section>
+
+            <!-- หน้าจัดการสต็อก (เพิ่ม/ลบ) -->
+            <section id="stock-view" class="view-section">
+                <div class="header">
+                    <h1>จัดการสต็อกสินค้า</h1>
+                </div>
+                <div class="card form-card">
+                    <h3><i class="fas fa-plus-circle"></i> เพิ่มสินค้าใหม่</h3>
+                    <div class="form-row">
+                        <input type="text" id="itemName" placeholder="ชื่อสินค้า">
+                        <input type="number" id="itemQty" placeholder="จำนวน (ชิ้น)">
+                        <input type="number" id="itemPrice" placeholder="ราคาต่อชิ้น (บาท)">
+                        <button id="addBtn" class="btn-primary"><i class="fas fa-save"></i> บันทึก</button>
+                    </div>
+                </div>
+                <div class="card table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ชื่อสินค้า</th>
+                                <th>คงเหลือ</th>
+                                <th>ราคา/ชิ้น</th>
+                                <th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- หน้าเบิกสินค้า -->
+            <section id="withdraw-view" class="view-section">
+                <div class="header">
+                    <h1>เบิกสินค้า</h1>
+                </div>
+                <div class="card form-card" style="max-width: 500px;">
+                    <div class="form-group">
+                        <label>เลือกสินค้าที่ต้องการเบิก</label>
+                        <select id="withdrawSelect">
+                            <option value="">-- กรุณาเลือกสินค้า --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>จำนวนที่เบิก</label>
+                        <input type="number" id="withdrawQty" placeholder="ระบุจำนวน" min="1">
+                    </div>
+                    <button id="withdrawBtn" class="btn-primary" style="width: 100%;"><i class="fas fa-check"></i> ยืนยันการเบิก</button>
+                </div>
+            </section>
+        </main>
     </div>
 
     <script type="module" src="app.js"></script>
