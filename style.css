@@ -1,53 +1,16 @@
-/* นำเข้าฟอนต์ Prompt จาก Google Fonts */
-body {
-    font-family: 'Prompt', sans-serif;
-}
-
-/* Custom Scrollbar เพื่อความเนียนตา (Premium UX) */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* อนิเมชันการเปลี่ยนหน้า (SPA) */
-.fade-in {
-    animation: fadeIn 0.4s ease-in-out;
-}
+body { font-family: 'Prompt', sans-serif; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.fade-in { animation: fadeIn 0.4s ease-in-out; }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
-/* สถานะ Active ของเมนูแถบด้านข้าง */
-.nav-btn.active {
-    background-color: #e0e7ff; /* indigo-50 */
-    color: #4f46e5; /* indigo-600 */
-    font-weight: 500;
-}
-.nav-btn.active i {
-    color: #4f46e5;
-}
-
-/* สำหรับมือถือ Sidebar Toggle */
+.nav-btn.active { background-color: #e0e7ff; color: #4f46e5; font-weight: 500; }
+.nav-btn.active i { color: #4f46e5; }
 @media (max-width: 768px) {
-    #sidebar {
-        position: absolute;
-        z-index: 50;
-        height: 100%;
-        transform: translateX(-100%);
-    }
-    #sidebar.show {
-        transform: translateX(0);
-        box-shadow: 10px 0 15px -3px rgba(0, 0, 0, 0.1);
-    }
+    #sidebar { position: absolute; z-index: 50; height: 100%; transform: translateX(-100%); }
+    #sidebar.show { transform: translateX(0); box-shadow: 10px 0 15px -3px rgba(0, 0, 0, 0.1); }
 }
