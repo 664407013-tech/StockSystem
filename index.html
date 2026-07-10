@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockPro - Premium Stock System</title>
+    <title>StockPro - Secure System</title>
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -19,34 +19,44 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <!-- ================= หน้าล็อกอิน ================= -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-indigo-50 p-4 transition-opacity duration-300">
-        <div class="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
-            <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 text-4xl">
-                <i class="fas fa-box-open"></i>
+    <!-- ================= 1. หน้าล็อกอิน (โชว์เป็นค่าเริ่มต้น) ================= -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-indigo-900 p-4 relative overflow-hidden">
+        <!-- พื้นหลังตกแต่ง -->
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+
+        <div class="bg-white/95 backdrop-blur-sm p-10 rounded-3xl shadow-2xl max-w-md w-full text-center relative z-10 border border-white/20">
+            <div class="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white text-4xl shadow-lg transform rotate-3 hover:rotate-0 transition-transform">
+                <i class="fas fa-shield-alt"></i>
             </div>
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">StockPro</h2>
-            <p class="text-gray-500 mb-8">กรุณาเข้าสู่ระบบเพื่อจัดการสต็อก</p>
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">StockPro System</h2>
+            <p class="text-gray-500 mb-8">กรุณายืนยันตัวตนก่อนเข้าถึงข้อมูลสต็อก</p>
             
-            <div class="space-y-4 text-left">
+            <div class="space-y-5 text-left">
                 <div>
-                    <label class="block text-sm text-gray-600 mb-1">อีเมลผู้ใช้งาน</label>
-                    <input type="email" id="loginEmail" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="admin@example.com">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">อีเมลผู้ใช้งาน</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="email" id="loginEmail" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="admin@domain.com">
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-600 mb-1">รหัสผ่าน</label>
-                    <input type="password" id="loginPassword" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••••••">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="password" id="loginPassword" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="••••••••">
+                    </div>
                 </div>
-                <p id="loginError" class="text-red-500 text-sm hidden text-center mt-2">อีเมลหรือรหัสผ่านไม่ถูกต้อง</p>
-                <button id="loginBtn" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition font-medium mt-4">
-                    <i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบ
+                <p id="loginError" class="text-red-500 text-sm hidden text-center bg-red-50 p-2 rounded-lg font-medium">อีเมลหรือรหัสผ่านไม่ถูกต้อง</p>
+                <button id="loginBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3.5 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium mt-4 shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ================= หน้าหลักของแอป (ซ่อนไว้ก่อนจนกว่าจะล็อกอิน) ================= -->
-    <div id="main-app" class="hidden flex h-screen overflow-hidden fade-in">
+    <!-- ================= 2. หน้าหลักของแอป (ซ่อนไว้จนกว่าจะล็อกอินผ่าน) ================= -->
+    <div id="main-app" class="hidden flex h-screen overflow-hidden fade-in bg-gray-50">
         
         <!-- Sidebar -->
         <aside class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300" id="sidebar">
@@ -66,27 +76,32 @@
                 </button>
             </nav>
             <div class="p-4 border-t border-gray-100">
-                <button id="logoutBtn" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">
-                    <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+                <!-- ข้อมูล User -->
+                <div class="mb-4 px-2">
+                    <p class="text-xs text-gray-400">เข้าสู่ระบบโดย:</p>
+                    <p class="text-sm font-medium text-gray-700 truncate" id="currentUserDisplay">กำลังโหลด...</p>
+                </div>
+                <button id="logoutBtn" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-500 border border-red-200 rounded-xl hover:bg-red-50 hover:border-red-300 transition-colors font-medium">
+                    <i class="fas fa-power-off"></i> ออกจากระบบ
                 </button>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden relative">
-            <header class="md:hidden bg-white p-4 border-b flex justify-between items-center">
-                <div class="font-bold text-indigo-600 text-xl">StockPro</div>
+            <header class="md:hidden bg-white p-4 border-b flex justify-between items-center shadow-sm">
+                <div class="font-bold text-indigo-600 text-xl"><i class="fas fa-box-open mr-2"></i>StockPro</div>
                 <button id="mobileMenuBtn" class="text-gray-600 text-2xl"><i class="fas fa-bars"></i></button>
             </header>
 
             <div class="flex-1 overflow-y-auto p-4 md:p-8">
                 
-                <!-- 1. ภาพรวมระบบ -->
+                <!-- 2.1 ภาพรวมระบบ -->
                 <section id="dashboard-view" class="view-section active fade-in">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h1 class="text-3xl font-bold text-gray-900">ภาพรวมระบบสต็อก</h1>
-                            <p class="text-gray-500 mt-1">สรุปข้อมูลและสถิติทั้งหมด</p>
+                            <p class="text-gray-500 mt-1">สรุปข้อมูลและสถิติทั้งหมดแบบ Real-time</p>
                         </div>
                         <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2">
                             <input type="date" id="startDate" class="border-none focus:ring-0 text-sm text-gray-600 bg-transparent">
@@ -98,7 +113,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
                             <div>
                                 <p class="text-sm font-medium text-gray-500 mb-1">จำนวนสินค้าทั้งหมด (รายการ)</p>
                                 <h3 class="text-4xl font-bold text-indigo-600" id="totalItemsDisplay">0</h3>
@@ -107,7 +122,7 @@
                                 <i class="fas fa-cubes"></i>
                             </div>
                         </div>
-                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
                             <div>
                                 <p class="text-sm font-medium text-gray-500 mb-1">มูลค่ารวมทั้งหมด (บาท)</p>
                                 <h3 class="text-4xl font-bold text-green-500" id="totalValueDisplay">0</h3>
@@ -126,7 +141,7 @@
                     </div>
                 </section>
 
-                <!-- 2. จัดการสต็อก -->
+                <!-- 2.2 จัดการสต็อก -->
                 <section id="stock-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">จัดการสต็อกสินค้า</h1>
                     
@@ -180,7 +195,7 @@
                     </div>
                 </section>
 
-                <!-- 3. เบิกสินค้า & สถานะ -->
+                <!-- 2.3 เบิกสินค้า & สถานะ -->
                 <section id="withdraw-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">ทำรายการเบิกสินค้า</h1>
                     
@@ -215,7 +230,7 @@
                     </div>
                 </section>
 
-                <!-- PDF Template -->
+                <!-- PDF Template (ซ่อนเสมอ) -->
                 <div id="pdfTemplate" class="hidden bg-white p-10 text-gray-800 w-[800px] mx-auto absolute top-[-9999px] left-[-9999px]">
                     <div class="text-center mb-8 border-b-2 border-gray-800 pb-4">
                         <h1 class="text-3xl font-bold">ใบเบิกสินค้า (Withdrawal Slip)</h1>
@@ -256,7 +271,7 @@
         </main>
     </div>
 
-    <!-- Script เป็นแบบ module -->
+    <!-- Script แบบ module -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
