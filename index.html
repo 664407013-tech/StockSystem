@@ -65,7 +65,7 @@
                             <input type="date" id="startDate" class="border-none focus:ring-0 text-sm text-gray-600 bg-transparent">
                             <span class="text-gray-400">-</span>
                             <input type="date" id="endDate" class="border-none focus:ring-0 text-sm text-gray-600 bg-transparent">
-                            <button class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 text-sm"><i class="fas fa-search"></i> ค้นหา</button>
+                            <button id="searchDateBtn" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 text-sm"><i class="fas fa-search"></i> ค้นหา</button>
                         </div>
                     </div>
 
@@ -98,43 +98,41 @@
                     </div>
                 </section>
 
-                <!-- 2. จัดการสต็อก (Stock Management) -->
+                <!-- 2. จัดการสต็อก -->
                 <section id="stock-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">จัดการสต็อกสินค้า</h1>
                     
-                    <!-- ฟอร์มเพิ่มสินค้า -->
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
                         <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"><i class="fas fa-plus-circle text-indigo-500"></i> เพิ่มสินค้าใหม่</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                             <div class="col-span-1 lg:col-span-1">
-                                <label class="block text-sm text-gray-600 mb-1">รหัสสินค้า (SKU)</label>
-                                <input type="text" id="itemCode" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น P001">
+                                <label class="block text-sm text-gray-600 mb-1">รหัสสินค้า</label>
+                                <input type="text" id="itemCode" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div class="col-span-1 lg:col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">ชื่อสินค้า</label>
-                                <input type="text" id="itemName" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="ชื่อสินค้า">
+                                <input type="text" id="itemName" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div class="col-span-1 lg:col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">จำนวน</label>
-                                <input type="number" id="itemQty" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0">
+                                <input type="number" id="itemQty" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div class="col-span-1 lg:col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">ราคา/ชิ้น</label>
-                                <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0.00">
+                                <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div class="col-span-1 lg:col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">รูปภาพสินค้า</label>
-                                <input type="file" id="itemImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                                <input type="file" id="itemImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 cursor-pointer">
                             </div>
                         </div>
                         <div class="mt-4 flex justify-end">
-                            <button id="addBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 font-medium">
+                            <button id="addBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2">
                                 <i class="fas fa-save"></i> บันทึกข้อมูล
                             </button>
                         </div>
                     </div>
 
-                    <!-- ตารางสินค้า -->
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -148,54 +146,48 @@
                                         <th class="p-4 font-medium text-center">จัดการ</th>
                                     </tr>
                                 </thead>
-                                <tbody id="stockTableBody" class="text-sm divide-y divide-gray-100">
-                                    <!-- ข้อมูลจำลอง -->
-                                </tbody>
+                                <tbody id="stockTableBody" class="text-sm divide-y divide-gray-100"></tbody>
                             </table>
                         </div>
                     </div>
                 </section>
 
-                <!-- 3. เบิกสินค้า & สถานะ (Withdraw & Tracking) -->
+                <!-- 3. เบิกสินค้า & สถานะ -->
                 <section id="withdraw-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">ทำรายการเบิกสินค้า</h1>
                     
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- ฟอร์มเบิก -->
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h3 class="text-lg font-semibold mb-4 text-gray-800"><i class="fas fa-hand-holding-box text-indigo-500"></i> รายละเอียดการเบิก</h3>
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">เลือกสินค้า</label>
-                                    <select id="withdrawSelect" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                    <select id="withdrawSelect" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                                         <option value="">-- กรุณาเลือกสินค้า --</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">จำนวนที่ต้องการเบิก</label>
-                                    <input type="number" id="withdrawQty" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="ระบุจำนวน">
+                                    <input type="number" id="withdrawQty" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">ผู้เบิก / หมายเหตุ</label>
-                                    <input type="text" id="withdrawNote" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="ชื่อผู้เบิก หรือ แผนก">
+                                    <input type="text" id="withdrawNote" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
-                                <button id="withdrawBtn" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center gap-2 font-medium mt-2">
+                                <button id="withdrawBtn" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition flex items-center justify-center gap-2 mt-2">
                                     <i class="fas fa-check-circle"></i> ยืนยันการเบิก
                                 </button>
                             </div>
                         </div>
 
-                        <!-- ประวัติการเบิกและพิมพ์เอกสาร -->
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h3 class="text-lg font-semibold mb-4 text-gray-800"><i class="fas fa-truck-loading text-indigo-500"></i> สถานะการเบิกล่าสุด</h3>
-                            <div class="overflow-y-auto max-h-[400px] pr-2 space-y-4" id="trackingList">
-                                <!-- รายการสถานะจำลอง -->
-                            </div>
+                            <div class="overflow-y-auto max-h-[400px] pr-2 space-y-4" id="trackingList"></div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Hidden Element for PDF Generation (เอกสารสำหรับปริ้น) -->
+                <!-- PDF Template (ซ่อนไว้สำหรับดึงไปปริ้น) -->
                 <div id="pdfTemplate" class="hidden bg-white p-10 text-gray-800 w-[800px] mx-auto absolute top-0 left-[-9999px]">
                     <div class="text-center mb-8 border-b-2 border-gray-800 pb-4">
                         <h1 class="text-3xl font-bold">ใบเบิกสินค้า (Withdrawal Slip)</h1>
@@ -203,11 +195,11 @@
                     </div>
                     <div class="flex justify-between mb-8">
                         <div>
-                            <p><strong>รหัสเอกสาร:</strong> <span id="pdfDocId">DOC-0000</span></p>
-                            <p><strong>ผู้เบิก:</strong> <span id="pdfUser">Unknown</span></p>
+                            <p><strong>รหัสเอกสาร:</strong> <span id="pdfDocId"></span></p>
+                            <p><strong>ผู้เบิก:</strong> <span id="pdfUser"></span></p>
                         </div>
                         <div class="text-right">
-                            <p><strong>วันที่:</strong> <span id="pdfDate">DD/MM/YYYY</span></p>
+                            <p><strong>วันที่:</strong> <span id="pdfDate"></span></p>
                             <p><strong>สถานะ:</strong> อนุมัติแล้ว</p>
                         </div>
                     </div>
@@ -221,21 +213,15 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="border border-gray-300 p-3" id="pdfItemCode">-</td>
-                                <td class="border border-gray-300 p-3" id="pdfItemName">-</td>
-                                <td class="border border-gray-300 p-3 text-center" id="pdfItemQty">0</td>
+                                <td class="border border-gray-300 p-3" id="pdfItemCode"></td>
+                                <td class="border border-gray-300 p-3" id="pdfItemName"></td>
+                                <td class="border border-gray-300 p-3 text-center" id="pdfItemQty"></td>
                             </tr>
                         </tbody>
                     </table>
                     <div class="flex justify-between mt-20 pt-8 border-t border-gray-300">
-                        <div class="text-center">
-                            <p class="mb-8">________________________</p>
-                            <p>ผู้ขอเบิก</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="mb-8">________________________</p>
-                            <p>ผู้อนุมัติ / ผู้จ่ายของ</p>
-                        </div>
+                        <div class="text-center"><p class="mb-8">________________________</p><p>ผู้ขอเบิก</p></div>
+                        <div class="text-center"><p class="mb-8">________________________</p><p>ผู้อนุมัติ / ผู้จ่ายของ</p></div>
                     </div>
                 </div>
 
@@ -243,7 +229,6 @@
         </main>
     </div>
 
-    <!-- ลิงก์ไฟล์ JavaScript -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
