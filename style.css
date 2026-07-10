@@ -1,6 +1,4 @@
-body { 
-    font-family: 'Prompt', sans-serif; 
-}
+body { font-family: 'Prompt', sans-serif; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -10,11 +8,7 @@ body {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.nav-btn.active { 
-    background-color: #e0e7ff; 
-    color: #4f46e5; 
-    font-weight: 500; 
-}
+.nav-btn.active { background-color: #e0e7ff; color: #4f46e5; font-weight: 500; }
 .nav-btn.active i { color: #4f46e5; }
 @media (max-width: 768px) {
     #sidebar { position: absolute; z-index: 50; height: 100%; transform: translateX(-100%); }
