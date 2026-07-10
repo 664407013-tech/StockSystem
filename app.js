@@ -68,14 +68,13 @@ function loadData() {
         snapshot.forEach((doc) => {
             withdrawHistory.push({ id: doc.id, ...doc.data() });
         });
-        // เรียงลำดับจากใหม่ไปเก่า (อิงตามเวลาที่บันทึก)
-        withdrawHistory.sort((a, b) => b.timestamp - a.timestamp);
+        withdrawHistory.sort((a, b) => b.timestamp - a.timestamp); // เรียงจากใหม่ไปเก่า
         updateUI();
     });
 }
 
 // --- อัปเดตหน้าจอ (UI Update) ---
-function updateUI() {
+function updateUI(filteredHistory = null) {
     const tbody = document.getElementById('stockTableBody');
     const select = document.getElementById('withdrawSelect');
     tbody.innerHTML = '';
@@ -85,27 +84,34 @@ function updateUI() {
     let chartLabels = [];
     let chartData = [];
 
+    // เรนเดอร์สินค้าและตัวเลือกเบิก
     products.forEach(p => {
-        totalVal += (p.qty * p.price);
-        chartLabels.push(p.name);
-        chartData.push(p.qty);
+        // ป้องกันค่า undefined จากข้อมูลเก่า
+        const pQty = p.qty || 0;
+        const pPrice = p.price || 0;
+        const pCode = p.code || '-';
+        const pName = p.name || 'ไม่ระบุ';
+
+        totalVal += (pQty * pPrice);
+        chartLabels.push(pName);
+        chartData.push(pQty);
 
         const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover">` : `<div class="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
         tbody.innerHTML += `
             <tr class="hover:bg-gray-50 transition-colors">
                 <td class="p-4">${imgTag}</td>
-                <td class="p-4 font-medium text-gray-900">${p.code}</td>
-                <td class="p-4">${p.name}</td>
-                <td class="p-4 ${p.qty < 50 ? 'text-red-500 font-bold' : 'text-gray-600'}">${p.qty.toLocaleString()}</td>
-                <td class="p-4 text-gray-600">฿${p.price.toLocaleString()}</td>
+                <td class="p-4 font-medium text-gray-900">${pCode}</td>
+                <td class="p-4">${pName}</td>
+                <td class="p-4 ${pQty < 50 ? 'text-red-500 font-bold' : 'text-gray-600'}">${pQty.toLocaleString()}</td>
+                <td class="p-4 text-gray-600">฿${pPrice.toLocaleString()}</td>
                 <td class="p-4 text-center">
                     <button class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition" onclick="deleteProduct('${p.id}')"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
 
-        if(p.qty > 0) {
-            select.innerHTML += `<option value="${p.id}">${p.code} - ${p.name} (คงเหลือ: ${p.qty})</option>`;
+        if(pQty > 0) {
+            select.innerHTML += `<option value="${p.id}">${pCode} - ${pName} (คงเหลือ: ${pQty})</option>`;
         }
     });
 
@@ -129,41 +135,51 @@ function updateUI() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 
-    // อัปเดตประวัติการเบิก
+    // อัปเดตประวัติการเบิก (ถ้ามีการค้นหา ให้ใช้ข้อมูลที่ค้นหา ถ้าไม่มีใช้ข้อมูลทั้งหมด)
+    const historyToRender = filteredHistory || withdrawHistory;
     const trackList = document.getElementById('trackingList');
     trackList.innerHTML = '';
-    withdrawHistory.forEach(h => {
-        trackList.innerHTML += `
-            <div class="p-4 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center mb-2">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-md font-medium">สำเร็จ</span>
-                        <span class="text-sm font-medium text-gray-800">${h.docId}</span>
+    
+    if(historyToRender.length === 0) {
+        trackList.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ไม่มีประวัติการทำรายการ</p>';
+    } else {
+        historyToRender.forEach(h => {
+            const hCode = h.code || '-';
+            const hName = h.itemName || '-';
+            const hNote = h.note || 'ไม่ระบุ';
+            
+            trackList.innerHTML += `
+                <div class="p-4 border border-gray-100 rounded-xl bg-gray-50 flex justify-between items-center mb-2">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-md font-medium">สำเร็จ</span>
+                            <span class="text-sm font-medium text-gray-800">${h.docId}</span>
+                        </div>
+                        <p class="text-sm text-gray-600">เบิก: <strong>${hName}</strong> (${h.qty} ชิ้น)</p>
+                        <p class="text-xs text-gray-400 mt-1">ผู้เบิก: ${hNote} | ${h.date}</p>
                     </div>
-                    <p class="text-sm text-gray-600">เบิก: <strong>${h.itemName}</strong> (${h.qty} ชิ้น)</p>
-                    <p class="text-xs text-gray-400 mt-1">ผู้เบิก: ${h.note} | ${h.date}</p>
+                    <button onclick="printPDF('${h.docId}', '${hName}', '${hCode}', '${h.qty}', '${hNote}', '${h.date}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg transition" title="พิมพ์ใบเบิก">
+                        <i class="fas fa-print text-lg"></i>
+                    </button>
                 </div>
-                <button onclick="printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg transition" title="พิมพ์ใบเบิก">
-                    <i class="fas fa-print text-lg"></i>
-                </button>
-            </div>
-        `;
-    });
+            `;
+        });
+    }
 }
 
 // --- ระบบเพิ่มสินค้าลง Firebase ---
 document.getElementById('addBtn').addEventListener('click', async () => {
-    const code = document.getElementById('itemCode').value;
+    const code = document.getElementById('itemCode').value || '-';
     const name = document.getElementById('itemName').value;
-    const qty = Number(document.getElementById('itemQty').value);
-    const price = Number(document.getElementById('itemPrice').value);
+    const qty = Number(document.getElementById('itemQty').value) || 0;
+    const price = Number(document.getElementById('itemPrice').value) || 0;
     const fileInput = document.getElementById('itemImage');
     
-    if(!code || !name) return alert("กรุณากรอกรหัสและชื่อสินค้า");
+    if(!name) return alert("กรุณากรอกชื่อสินค้าอย่างน้อย");
 
-    // เปลี่ยนปุ่มเป็นสถานะกำลังโหลด
     const btn = document.getElementById('addBtn');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+    btn.disabled = true;
 
     let base64Image = '';
     if(fileInput.files.length > 0) {
@@ -192,16 +208,22 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     }
 
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกข้อมูล';
+    btn.disabled = false;
 });
 
 // --- ระบบลบสินค้า ---
 window.deleteProduct = async function(id) {
     if(confirm('ยืนยันการลบสินค้า?')) {
-        await deleteDoc(doc(db, "products", id));
+        try {
+            await deleteDoc(doc(db, "products", id));
+        } catch (e) {
+            console.error(e);
+            alert("ลบสินค้าไม่สำเร็จ");
+        }
     }
 }
 
-// --- ระบบเบิกสินค้า ---
+// --- ระบบเบิกสินค้า (แก้ไข Error undefined แล้ว) ---
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -210,22 +232,27 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     if(!id || qty <= 0) return alert('ข้อมูลการเบิกไม่ถูกต้อง');
 
     const product = products.find(p => p.id === id);
+    if(!product) return alert('หาสินค้าไม่พบในระบบ');
     if(product.qty < qty) return alert('สินค้าคงเหลือไม่เพียงพอ!');
+
+    const btn = document.getElementById('withdrawBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังประมวลผล...';
+    btn.disabled = true;
 
     try {
         // 1. อัปเดตสต็อกใน Firebase
         const newQty = product.qty - qty;
         await updateDoc(doc(db, "products", id), { qty: newQty });
 
-        // 2. บันทึกประวัติการเบิก
+        // 2. บันทึกประวัติการเบิก (ป้องกันค่า undefined)
         const docId = 'DOC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         const now = new Date();
-        const dateStr = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
+        const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         
         await addDoc(collection(db, "withdraw_history"), {
             docId: docId,
-            itemName: product.name,
-            code: product.code,
+            itemName: product.name || 'ไม่ระบุ',
+            code: product.code || '-',  // <-- ตรงนี้คือจุดที่แก้ Error ของคุณ
             qty: qty,
             note: note,
             date: dateStr,
@@ -237,20 +264,40 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
         document.getElementById('withdrawNote').value = '';
         
         if(confirm('เบิกสำเร็จ! ต้องการพิมพ์ใบเบิกเป็น PDF เลยหรือไม่?')) {
-            window.printPDF(docId, product.name, product.code, qty, note, dateStr);
+            window.printPDF(docId, product.name, product.code || '-', qty, note, dateStr);
         }
     } catch (e) {
         console.error("Error updating: ", e);
-        alert('เกิดข้อผิดพลาดในการเบิกสินค้า');
+        alert('เกิดข้อผิดพลาดในการเบิกสินค้า: ' + e.message);
+    }
+
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก';
+    btn.disabled = false;
+});
+
+// --- ระบบค้นหาตามวันที่ ---
+document.querySelector('#dashboard-view button.bg-indigo-600').addEventListener('click', () => {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if(startDate && endDate) {
+        const start = new Date(startDate).setHours(0,0,0,0);
+        const end = new Date(endDate).setHours(23,59,59,999);
+        
+        // คัดกรองประวัติที่อยู่ในช่วงวันที่กำหนด
+        const filtered = withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+        updateUI(filtered); // อัปเดตเฉพาะรายการค้นหา
+    } else {
+        updateUI(); // ถ้าไม่ได้เลือกวันที่ ให้แสดงทั้งหมด
     }
 });
 
-// --- ระบบพิมพ์ PDF (เหมือนเดิม) ---
+// --- ระบบพิมพ์ PDF ---
 window.printPDF = function(docId, itemName, code, qty, user, date) {
     document.getElementById('pdfDocId').innerText = docId;
     document.getElementById('pdfUser').innerText = user;
     document.getElementById('pdfDate').innerText = date;
-    document.getElementById('pdfItemCode').innerText = code;
+    document.getElementById('pdfItemCode').innerText = code || '-';
     document.getElementById('pdfItemName').innerText = itemName;
     document.getElementById('pdfItemQty').innerText = qty;
 
