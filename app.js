@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // ==========================================
-// ⚠️ เปลี่ยน Config ตรงนี้เป็นของคุณทั้งหมด ⚠️
+// ⚠️ เปลี่ยน Config ของคุณตรงนี้ ⚠️
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyAgMH_X7Vln0WX9xxgBSq7snby82gq54Nc",
@@ -22,11 +22,11 @@ const auth = getAuth(app);
 let myChart = null;
 let products = [];
 let withdrawHistory = []; 
-let unsubscribeProducts = null;
-let unsubscribeHistory = null;
+let addHistory = []; // เพิ่มตัวแปรเก็บประวัติรับเข้า
+let unsubscribeProducts = null, unsubscribeHistory = null, unsubscribeAddHistory = null;
 
 // ==========================================
-// ส่วนที่ 1: ระบบ Authentication
+// 1. ระบบ Authentication
 // ==========================================
 const loginScreen = document.getElementById('login-screen');
 const mainApp = document.getElementById('main-app');
@@ -44,172 +44,212 @@ onAuthStateChanged(auth, (user) => {
         userDisplay.innerText = "กำลังโหลด...";
         if (unsubscribeProducts) unsubscribeProducts();
         if (unsubscribeHistory) unsubscribeHistory();
+        if (unsubscribeAddHistory) unsubscribeAddHistory();
     }
 });
 
 document.getElementById('loginBtn').addEventListener('click', async () => {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value.trim();
-    const errorMsg = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-
-    if (!email || !password) {
-        errorMsg.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน";
-        errorMsg.classList.remove('hidden');
-        return;
-    }
-
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
-    btn.disabled = true;
-    errorMsg.classList.add('hidden');
-
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-        document.getElementById('loginEmail').value = '';
-        document.getElementById('loginPassword').value = '';
-    } catch (error) {
-        errorMsg.innerText = "อีเมลหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง";
-        errorMsg.classList.remove('hidden');
-    }
-
-    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
-    btn.disabled = false;
+    if (!email || !password) return;
+    try { await signInWithEmailAndPassword(auth, email, password); } 
+    catch (error) { alert("อีเมลหรือรหัสผ่านไม่ถูกต้อง"); }
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
-    if(confirm('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?')) {
-        signOut(auth);
-    }
+    if(confirm('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?')) signOut(auth);
 });
 
-// ==========================================
-// ส่วนที่ 2: Navigation & Helpers
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
-            
-            btn.classList.add('active');
-            document.getElementById(btn.getAttribute('data-target')).classList.remove('hidden');
-
-            if(window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('show');
-            }
-        });
+// Navigation
+document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+        btn.classList.add('active');
+        document.getElementById(btn.getAttribute('data-target')).classList.remove('hidden');
     });
-
-    const mobileBtn = document.getElementById('mobileMenuBtn');
-    if(mobileBtn) mobileBtn.addEventListener('click', () => document.getElementById('sidebar').classList.toggle('show'));
 });
 
 function getBase64(file) {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
+        const reader = new FileReader(); reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error);
     });
 }
 
 // ==========================================
-// ส่วนที่ 3: ดึงข้อมูลและอัปเดตหน้าจอ
+// 2. ดึงข้อมูลจาก Firestore
 // ==========================================
 function loadData() {
     try {
+        // ดึงสต็อกปัจจุบัน
         unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
             products = [];
             snapshot.forEach((doc) => products.push({ id: doc.id, ...doc.data() }));
-            updateUI();
+            updateStockTable();
+            updateDashboard(); // อัปเดต Dashboard
         });
 
+        // ดึงประวัติการเบิกออก
         unsubscribeHistory = onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
             withdrawHistory = [];
             snapshot.forEach((doc) => withdrawHistory.push({ id: doc.id, ...doc.data() }));
             withdrawHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            updateUI();
+            updateWithdrawList();
+            updateDashboard();
+        });
+
+        // ดึงประวัติการรับเข้า (ใหม่)
+        unsubscribeAddHistory = onSnapshot(collection(db, "add_history"), (snapshot) => {
+            addHistory = [];
+            snapshot.forEach((doc) => addHistory.push({ id: doc.id, ...doc.data() }));
+            addHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            updateDashboard();
         });
     } catch (error) {
         console.error("Error loading data:", error);
     }
 }
 
-function updateUI(filteredHistory = null) {
-    const tbody = document.getElementById('stockTableBody');
-    const select = document.getElementById('withdrawSelect');
-    if(!tbody || !select) return; 
+// ==========================================
+// 3. จัดการ Dashboard (ระบบวิเคราะห์)
+// ==========================================
+function updateDashboard() {
+    // 1. สรุปยอดรวมปัจจุบัน (ไม่ขึ้นกับวันที่)
+    let totalItems = products.length;
+    let totalValue = products.reduce((sum, p) => sum + ((p.qty || 0) * (p.price || 0)), 0);
+    
+    document.getElementById('dashCurrentItems').innerText = totalItems.toLocaleString();
+    document.getElementById('dashCurrentValue').innerText = `฿${totalValue.toLocaleString()}`;
 
-    tbody.innerHTML = '';
-    select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
+    // 2. หาวันที่สำหรับกรอง (ถ้าไม่ได้เลือก จะแสดงทั้งหมด)
+    const startDateVal = document.getElementById('dashStartDate').value;
+    const endDateVal = document.getElementById('dashEndDate').value;
+    
+    let filteredAdd = addHistory;
+    let filteredWith = withdrawHistory;
+    let dateRangeText = "ทั้งหมดตั้งแต่เริ่มระบบ";
 
-    let totalVal = 0, chartLabels = [], chartData = [];
+    if (startDateVal && endDateVal) {
+        const start = new Date(startDateVal).setHours(0,0,0,0);
+        const end = new Date(endDateVal).setHours(23,59,59,999);
+        filteredAdd = addHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+        filteredWith = withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+        dateRangeText = `${new Date(startDateVal).toLocaleDateString('th-TH')} ถึง ${new Date(endDateVal).toLocaleDateString('th-TH')}`;
+    }
 
-    products.forEach(p => {
-        const pQty = p.qty || 0, pPrice = p.price || 0, pCode = p.code || '-', pName = p.name || 'ไม่ระบุ';
+    // 3. คำนวณยอด รับเข้า / เบิกออก ในช่วงเวลา
+    let addedQty = filteredAdd.reduce((sum, h) => sum + (h.qty || 0), 0);
+    let withQty = filteredWith.reduce((sum, h) => sum + (h.qty || 0), 0);
 
-        totalVal += (pQty * pPrice);
-        chartLabels.push(pName); chartData.push(pQty);
+    document.getElementById('dashAddedPeriod').innerHTML = `${addedQty.toLocaleString()} <span class="text-sm font-normal text-blue-500">ชิ้น</span>`;
+    document.getElementById('dashAddedCount').innerText = `จาก ${filteredAdd.length} รายการ`;
+    
+    document.getElementById('dashWithdrawnPeriod').innerHTML = `${withQty.toLocaleString()} <span class="text-sm font-normal text-orange-500">ชิ้น</span>`;
+    document.getElementById('dashWithdrawnCount').innerText = `จาก ${filteredWith.length} รายการ`;
 
-        const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
+    // 4. แสดงแถบเปรียบเทียบ (Ratio Bar)
+    const totalMove = addedQty + withQty;
+    const barIn = document.getElementById('ratioBarIn');
+    const ratioText = document.getElementById('ratioText');
+    const statusText = document.getElementById('dashboardStatusText');
+    
+    if (totalMove === 0) {
+        barIn.style.width = '50%';
+        ratioText.innerText = "0% / 0%";
+        statusText.innerHTML = `ช่วงเวลา <strong>${dateRangeText}</strong><br>ยังไม่มีการเคลื่อนไหวของสต็อก`;
+    } else {
+        const inPercent = Math.round((addedQty / totalMove) * 100);
+        const outPercent = 100 - inPercent;
+        barIn.style.width = `${inPercent}%`;
+        ratioText.innerText = `${inPercent}% / ${outPercent}%`;
         
-        // เพิ่มปุ่มแก้ไข (Edit) ติดกับปุ่มลบ (Delete)
-        tbody.innerHTML += `
-            <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
-                <td class="p-4">${imgTag}</td>
-                <td class="p-4 font-medium text-gray-900">${pCode}</td>
-                <td class="p-4">${pName}</td>
-                <td class="p-4 ${pQty < 10 ? 'text-red-600 font-bold bg-red-50 rounded-lg px-2 py-1 inline-block mt-2' : 'text-gray-600'}">${pQty.toLocaleString()}</td>
-                <td class="p-4 text-gray-600">฿${pPrice.toLocaleString()}</td>
-                <td class="p-4 text-center whitespace-nowrap">
-                    <button class="text-blue-500 hover:bg-blue-100 p-2 rounded-lg transition mr-2" title="แก้ไข" onclick="window.openEditModal('${p.id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="text-red-500 hover:bg-red-100 p-2 rounded-lg transition" title="ลบ" onclick="window.deleteProduct('${p.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-        if(pQty > 0) select.innerHTML += `<option value="${p.id}">${pCode} - ${pName} (คงเหลือ: ${pQty})</option>`;
-    });
+        let insight = "สินค้ามีการหมุนเวียนปกติ";
+        if (inPercent > 70) insight = "<span class='text-blue-600'>มีการนำเข้าสต็อกเป็นจำนวนมากในช่วงเวลานี้</span>";
+        else if (outPercent > 70) insight = "<span class='text-orange-600 font-medium'>มีการเบิกสินค้าออกค่อนข้างสูง โปรดระวังของขาดสต็อก</span>";
+        
+        statusText.innerHTML = `ช่วงเวลา: <strong>${dateRangeText}</strong><br>${insight}`;
+    }
 
-    document.getElementById('totalItemsDisplay').innerText = products.length.toLocaleString();
-    document.getElementById('totalValueDisplay').innerText = totalVal.toLocaleString();
-
+    // 5. วาดกราฟ 10 อันดับแรกที่มีของเยอะสุด
+    let sortedProducts = [...products].sort((a,b) => b.qty - a.qty).slice(0, 10);
     const chartCanvas = document.getElementById('stockChart');
     if (chartCanvas) {
         const ctx = chartCanvas.getContext('2d');
         if(myChart) myChart.destroy();
         myChart = new Chart(ctx, {
             type: 'bar',
-            data: { labels: chartLabels, datasets: [{ label: 'จำนวนสินค้าคงเหลือ', data: chartData, backgroundColor: '#6366f1', borderRadius: 6 }] },
+            data: { 
+                labels: sortedProducts.map(p => p.name || 'ไม่ระบุ'), 
+                datasets: [{ label: 'จำนวนคงเหลือ', data: sortedProducts.map(p => p.qty), backgroundColor: '#6366f1', borderRadius: 6 }] 
+            },
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
+}
 
-    const historyToRender = filteredHistory || withdrawHistory;
+// ปุ่มกรอง Dashboard
+document.getElementById('filterDashBtn').addEventListener('click', () => {
+    if (!document.getElementById('dashStartDate').value || !document.getElementById('dashEndDate').value) {
+        alert("กรุณาเลือกวันที่เริ่มต้นและสิ้นสุดให้ครบถ้วน"); return;
+    }
+    updateDashboard();
+});
+document.getElementById('clearDashBtn').addEventListener('click', () => {
+    document.getElementById('dashStartDate').value = '';
+    document.getElementById('dashEndDate').value = '';
+    updateDashboard();
+});
+
+// ==========================================
+// 4. การจัดการตารางและการเบิก (Stock & Withdraw UI)
+// ==========================================
+function updateStockTable() {
+    const tbody = document.getElementById('stockTableBody');
+    const select = document.getElementById('withdrawSelect');
+    if(!tbody || !select) return; 
+
+    tbody.innerHTML = ''; select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
+
+    products.forEach(p => {
+        const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
+        tbody.innerHTML += `
+            <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
+                <td class="p-4">${imgTag}</td>
+                <td class="p-4 font-medium text-gray-900">${p.code || '-'}</td>
+                <td class="p-4">${p.name || '-'}</td>
+                <td class="p-4 ${p.qty < 10 ? 'text-red-600 font-bold bg-red-50 rounded-lg px-2 py-1 inline-block mt-2' : 'text-gray-600'}">${(p.qty||0).toLocaleString()}</td>
+                <td class="p-4 text-gray-600">฿${(p.price||0).toLocaleString()}</td>
+                <td class="p-4 text-center whitespace-nowrap">
+                    <button class="text-blue-500 hover:bg-blue-100 p-2 rounded-lg transition mr-2" onclick="window.openEditModal('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="text-red-500 hover:bg-red-100 p-2 rounded-lg transition" onclick="window.deleteProduct('${p.id}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+        if((p.qty||0) > 0) select.innerHTML += `<option value="${p.id}">${p.code || '-'} - ${p.name} (คงเหลือ: ${p.qty})</option>`;
+    });
+}
+
+function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
-
     trackList.innerHTML = '';
-    if(historyToRender.length === 0) {
-        trackList.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">ไม่มีประวัติการทำรายการ</div>';
+    
+    if(withdrawHistory.length === 0) {
+        trackList.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">ไม่มีประวัติการเบิก</div>';
     } else {
-        historyToRender.forEach(h => {
+        withdrawHistory.forEach(h => {
             trackList.innerHTML += `
                 <div class="p-4 border border-gray-100 rounded-xl bg-white shadow-sm flex justify-between items-center mb-3">
                     <div>
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-md font-bold">สำเร็จ</span>
+                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-md font-bold">เบิกออก</span>
                             <span class="text-sm font-semibold text-gray-800">${h.docId}</span>
                         </div>
-                        <p class="text-sm text-gray-700">เบิก: <strong>${h.itemName || '-'}</strong> <span class="text-indigo-600 font-bold">(${h.qty} ชิ้น)</span></p>
+                        <p class="text-sm text-gray-700">เบิก: <strong>${h.itemName || '-'}</strong> <span class="text-orange-600 font-bold">(${h.qty} ชิ้น)</span></p>
                         <p class="text-xs text-gray-400 mt-1">${h.note || '-'} | ${h.date}</p>
                     </div>
-                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all">
-                        <i class="fas fa-print"></i>
-                    </button>
+                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all"><i class="fas fa-print"></i></button>
                 </div>
             `;
         });
@@ -217,18 +257,22 @@ function updateUI(filteredHistory = null) {
 }
 
 // ==========================================
-// ส่วนที่ 4: จัดการข้อมูล (เพิ่ม, แก้ไข, เบิก, ลบ)
+// 5. บันทึกข้อมูล (รับเข้า / เบิกออก)
 // ==========================================
+function getFormattedDate() {
+    const now = new Date();
+    return `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+}
 
-// 1. เพิ่มสินค้า
+// 5.1 เพิ่มสินค้า (บันทึกลง Products + Add_History)
 document.getElementById('addBtn').addEventListener('click', async () => {
-    const codeVal = document.getElementById('itemCode').value.trim() || "-";
-    const nameVal = document.getElementById('itemName').value.trim();
-    const qtyVal = Number(document.getElementById('itemQty').value) || 0;
-    const priceVal = Number(document.getElementById('itemPrice').value) || 0;
+    const code = document.getElementById('itemCode').value.trim() || "-";
+    const name = document.getElementById('itemName').value.trim();
+    const qty = Number(document.getElementById('itemQty').value) || 0;
+    const price = Number(document.getElementById('itemPrice').value) || 0;
     const fileInput = document.getElementById('itemImage');
     
-    if(!nameVal) return alert("กรุณากรอกชื่อสินค้า");
+    if(!name || qty <= 0) return alert("กรุณากรอกชื่อสินค้าและจำนวนให้ถูกต้อง (มากกว่า 0)");
 
     const btn = document.getElementById('addBtn');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
@@ -237,15 +281,24 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     if(fileInput.files.length > 0) base64Image = await getBase64(fileInput.files[0]);
 
     try {
-        await addDoc(collection(db, "products"), { code: codeVal, name: nameVal, qty: qtyVal, price: priceVal, image: base64Image });
+        // 1. นำเข้าตารางสินค้าหลัก
+        await addDoc(collection(db, "products"), { code, name, qty, price, image: base64Image });
+        
+        // 2. บันทึกประวัติการรับเข้า (เพื่อให้ Dashboard คำนวณได้)
+        await addDoc(collection(db, "add_history"), {
+            docId: 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+            itemName: name, code: code, qty: qty, 
+            date: getFormattedDate(), timestamp: Date.now()
+        });
+
         ['itemCode', 'itemName', 'itemQty', 'itemPrice', 'itemImage'].forEach(id => document.getElementById(id).value = '');
-        alert('เพิ่มสินค้าเรียบร้อยแล้ว');
+        alert('บันทึกรับเข้าสินค้าเรียบร้อยแล้ว');
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
-    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกข้อมูล'; btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกรับเข้าสต็อก'; btn.disabled = false;
 });
 
-// 2. เบิกสินค้า
+// 5.2 เบิกสินค้า (ตัดสต็อก + บันทึก Withdraw_History)
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -261,22 +314,21 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     try {
         await updateDoc(doc(db, "products", id), { qty: product.qty - qty });
 
-        const docId = 'DOC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        const now = new Date();
-        const dateStr = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const docId = 'OUT-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const dateStr = getFormattedDate();
         
         await addDoc(collection(db, "withdraw_history"), { docId, itemName: product.name, code: product.code, qty, note, date: dateStr, timestamp: Date.now() });
 
         document.getElementById('withdrawQty').value = '';
         document.getElementById('withdrawNote').value = '';
         
-        if(confirm('✅ เบิกสำเร็จ! ต้องการพิมพ์ PDF หรือไม่?')) window.printPDF(docId, product.name, product.code, qty, note, dateStr);
+        if(confirm('✅ เบิกสำเร็จ! ต้องการพิมพ์ใบเบิก PDF หรือไม่?')) window.printPDF(docId, product.name, product.code, qty, note, dateStr);
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
     btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก'; btn.disabled = false;
 });
 
-// 3. บันทึกการแก้ไข (ฟังก์ชันใหม่)
+// 5.3 บันทึกการแก้ไข
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editItemId').value;
     const code = document.getElementById('editItemCode').value.trim() || "-";
@@ -292,70 +344,40 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
 
     try {
         let updateData = { code, name, qty, price };
-        
-        // ถ้ามีการเลือกรูปใหม่ ให้แปลงและอัปเดต ถ้าไม่มีจะคงรูปเดิมไว้
-        if (fileInput.files.length > 0) {
-            updateData.image = await getBase64(fileInput.files[0]);
-        }
-
+        if (fileInput.files.length > 0) updateData.image = await getBase64(fileInput.files[0]);
         await updateDoc(doc(db, "products", id), updateData);
-        window.closeEditModal(); // ปิดหน้าต่าง
+        window.closeEditModal();
         alert('บันทึกการแก้ไขเรียบร้อยแล้ว');
-    } catch (e) {
-        alert('เกิดข้อผิดพลาดในการอัปเดต: ' + e.message);
-    }
+    } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกการแก้ไข'; btn.disabled = false;
 });
 
 // ==========================================
-// ส่วนที่ 5: Global Window Functions (HTML เรียกใช้)
+// 6. Global Functions
 // ==========================================
-
-// เปิดหน้าต่างแก้ไข
 window.openEditModal = function(id) {
     const product = products.find(p => p.id === id);
     if(!product) return;
-
-    // เติมข้อมูลเดิมลงในช่องกรอก
     document.getElementById('editItemId').value = product.id;
     document.getElementById('editItemCode').value = product.code || '';
     document.getElementById('editItemName').value = product.name || '';
     document.getElementById('editItemQty').value = product.qty || 0;
     document.getElementById('editItemPrice').value = product.price || 0;
-    document.getElementById('editItemImage').value = ''; // รีเซ็ตช่องไฟล์
-
-    // แสดงหน้าต่าง
+    document.getElementById('editItemImage').value = ''; 
     document.getElementById('editModal').classList.remove('hidden');
 };
 
-// ปิดหน้าต่างแก้ไข
-window.closeEditModal = function() {
-    document.getElementById('editModal').classList.add('hidden');
-};
+window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
 
-// ลบสินค้า
-window.deleteProduct = async function(id) {
+window.deleteProduct = async (id) => {
     if(confirm('⚠️ ยืนยันการลบสินค้านี้?')) {
         try { await deleteDoc(doc(db, "products", id)); } 
         catch (e) { alert("ลบไม่สำเร็จ"); }
     }
 };
 
-// ค้นหาวันที่เบิก (รวบยอดฟังก์ชัน)
-document.getElementById('searchDateBtn').addEventListener('click', () => {
-    const s = document.getElementById('startDate').value, e = document.getElementById('endDate').value;
-    if(s && e) {
-        const start = new Date(s).setHours(0,0,0,0), end = new Date(e).setHours(23,59,59,999);
-        updateUI(withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end));
-    } else alert("เลือกวันที่ให้ครบ");
-});
-document.getElementById('clearSearchBtn').addEventListener('click', () => {
-    document.getElementById('startDate').value = ''; document.getElementById('endDate').value = ''; updateUI();
-});
-
-// ปริ้น PDF
-window.printPDF = function(id, name, code, qty, user, date) {
+window.printPDF = (id, name, code, qty, user, date) => {
     document.getElementById('pdfDocId').innerText = id; document.getElementById('pdfUser').innerText = user;
     document.getElementById('pdfDate').innerText = date; document.getElementById('pdfItemCode').innerText = code;
     document.getElementById('pdfItemName').innerText = name; document.getElementById('pdfItemQty').innerText = qty;
