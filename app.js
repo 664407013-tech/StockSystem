@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // ==========================================
 // ⚠️ เปลี่ยน Config ตรงนี้เป็นของคุณทั้งหมด ⚠️
@@ -13,21 +14,87 @@ const firebaseConfig = {
   appId: "1:287552633400:web:e81c4f2e94232dd4c044cd",
   measurementId: "G-N4XN8373HQ"
 };
+
 // เริ่มต้น Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 // ตัวแปรส่วนกลาง
 let myChart = null;
 let products = [];
 let withdrawHistory = []; 
+let unsubscribeProducts = null;
+let unsubscribeHistory = null;
 
 // ==========================================
-// ส่วนที่ 1: การควบคุมหน้าจอ (Navigation & UI)
+// ระบบ Login & Authentication
+// ==========================================
+const loginScreen = document.getElementById('login-screen');
+const mainApp = document.getElementById('main-app');
+
+// ตรวจสอบสถานะการล็อกอินแบบ Real-time
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // ล็อกอินสำเร็จ ซ่อนหน้าล็อกอิน โชว์แอป และโหลดข้อมูล
+        loginScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        loadData();
+    } else {
+        // ยังไม่ได้ล็อกอิน โชว์หน้าล็อกอิน ซ่อนแอป 
+        loginScreen.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+        
+        // หยุดการดึงข้อมูลถ้ามีการออกระบบ
+        if (unsubscribeProducts) unsubscribeProducts();
+        if (unsubscribeHistory) unsubscribeHistory();
+    }
+});
+
+// กดปุ่มเข้าสู่ระบบ
+document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorMsg = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+
+    if (!email || !password) {
+        errorMsg.innerText = "กรุณากรอกอีเมลและรหัสผ่าน";
+        errorMsg.classList.remove('hidden');
+        return;
+    }
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> กำลังเข้าสู่ระบบ...';
+    btn.disabled = true;
+    errorMsg.classList.add('hidden');
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        // เมื่อล็อกอินสำเร็จ onAuthStateChanged จะทำงานเอง
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+    } catch (error) {
+        console.error("Login failed:", error);
+        errorMsg.innerText = "อีเมลหรือรหัสผ่านไม่ถูกต้อง!";
+        errorMsg.classList.remove('hidden');
+    }
+
+    btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบ';
+    btn.disabled = false;
+});
+
+// กดปุ่มออกจากระบบ
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    if(confirm('ต้องการออกจากระบบหรือไม่?')) {
+        signOut(auth);
+    }
+});
+
+
+// ==========================================
+// ส่วนที่ 1: การควบคุมหน้าจอ (Navigation)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // เปลี่ยนเมนู
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -43,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ปุ่มแฮมเบอร์เกอร์บนมือถือ
     const mobileBtn = document.getElementById('mobileMenuBtn');
     if(mobileBtn) {
         mobileBtn.addEventListener('click', () => {
@@ -52,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ฟังก์ชันแปลงรูปภาพ
 function getBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -63,12 +128,11 @@ function getBase64(file) {
 }
 
 // ==========================================
-// ส่วนที่ 2: โหลดข้อมูลและแสดงผล (Real-time)
+// ส่วนที่ 2: โหลดข้อมูล (จะทำงานเฉพาะตอนล็อกอินแล้ว)
 // ==========================================
 function loadData() {
     try {
-        // ดึงสต็อกสินค้า
-        onSnapshot(collection(db, "products"), (snapshot) => {
+        unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
             products = [];
             snapshot.forEach((doc) => {
                 products.push({ id: doc.id, ...doc.data() });
@@ -76,19 +140,16 @@ function loadData() {
             updateUI();
         });
 
-        // ดึงประวัติเบิก
-        onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
+        unsubscribeHistory = onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
             withdrawHistory = [];
             snapshot.forEach((doc) => {
                 withdrawHistory.push({ id: doc.id, ...doc.data() });
             });
-            // เรียงจากใหม่ไปเก่า
             withdrawHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             updateUI();
         });
     } catch (error) {
-        console.error("Error connecting to Firebase:", error);
-        alert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ โปรดตรวจสอบ Firebase Config");
+        console.error("Error connecting to DB:", error);
     }
 }
 
@@ -96,7 +157,7 @@ function updateUI(filteredHistory = null) {
     const tbody = document.getElementById('stockTableBody');
     const select = document.getElementById('withdrawSelect');
     
-    if(!tbody || !select) return; // ป้องกัน Error ถ้าหา element ไม่เจอ
+    if(!tbody || !select) return; 
 
     tbody.innerHTML = '';
     select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
@@ -105,9 +166,7 @@ function updateUI(filteredHistory = null) {
     let chartLabels = [];
     let chartData = [];
 
-    // สร้างตารางสินค้าและตัวเลือก
     products.forEach(p => {
-        // ใช้ Fallback ป้องกันค่า undefined
         const pQty = p.qty || 0;
         const pPrice = p.price || 0;
         const pCode = p.code || '-';
@@ -141,7 +200,6 @@ function updateUI(filteredHistory = null) {
     document.getElementById('totalItemsDisplay').innerText = products.length.toLocaleString();
     document.getElementById('totalValueDisplay').innerText = totalVal.toLocaleString();
 
-    // สร้างกราฟ
     const chartCanvas = document.getElementById('stockChart');
     if (chartCanvas) {
         const ctx = chartCanvas.getContext('2d');
@@ -161,7 +219,6 @@ function updateUI(filteredHistory = null) {
         });
     }
 
-    // สร้างลิสต์ประวัติการเบิก
     const historyToRender = filteredHistory || withdrawHistory;
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
@@ -195,10 +252,9 @@ function updateUI(filteredHistory = null) {
 }
 
 // ==========================================
-// ส่วนที่ 3: ระบบจัดการข้อมูล (เพิ่ม/ลบ/เบิก/ค้นหา)
+// ส่วนที่ 3: ระบบจัดการข้อมูล
 // ==========================================
 
-// เพิ่มสินค้า
 document.getElementById('addBtn').addEventListener('click', async () => {
     const codeVal = document.getElementById('itemCode').value.trim() || "-";
     const nameVal = document.getElementById('itemName').value.trim();
@@ -226,7 +282,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
             image: base64Image
         });
 
-        // ล้างฟอร์ม
         document.getElementById('itemCode').value = '';
         document.getElementById('itemName').value = '';
         document.getElementById('itemQty').value = '';
@@ -234,7 +289,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
         fileInput.value = '';
         alert('เพิ่มสินค้าเรียบร้อย');
     } catch (e) {
-        console.error("Error adding doc:", e);
         alert('เกิดข้อผิดพลาด: ' + e.message);
     }
 
@@ -242,7 +296,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     btn.disabled = false;
 });
 
-// เบิกสินค้า
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -259,16 +312,13 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.disabled = true;
 
     try {
-        // 1. ลดจำนวนสต็อก
         const newQty = product.qty - qty;
         await updateDoc(doc(db, "products", id), { qty: newQty });
 
-        // 2. สร้างเลขที่เอกสาร & เวลา
         const docId = 'DOC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         const now = new Date();
         const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         
-        // 3. บันทึกประวัติลง Firebase
         await addDoc(collection(db, "withdraw_history"), {
             docId: docId,
             itemName: product.name || 'ไม่ระบุ',
@@ -279,16 +329,13 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
             timestamp: Date.now()
         });
 
-        // ล้างฟอร์ม
         document.getElementById('withdrawQty').value = '';
         document.getElementById('withdrawNote').value = '';
         
-        // ถามเพื่อปริ้น PDF
         if(confirm('ทำรายการเบิกสำเร็จ! ต้องการพิมพ์ใบเบิกเป็น PDF หรือไม่?')) {
             window.printPDF(docId, product.name, product.code || '-', qty, note, dateStr);
         }
     } catch (e) {
-        console.error("Error withdrawing:", e);
         alert('เกิดข้อผิดพลาด: ' + e.message);
     }
 
@@ -296,7 +343,6 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.disabled = false;
 });
 
-// ค้นหาตามวันที่
 document.getElementById('searchDateBtn').addEventListener('click', () => {
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
@@ -311,7 +357,6 @@ document.getElementById('searchDateBtn').addEventListener('click', () => {
     }
 });
 
-// ล้างการค้นหา
 document.getElementById('clearSearchBtn').addEventListener('click', () => {
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
@@ -319,22 +364,18 @@ document.getElementById('clearSearchBtn').addEventListener('click', () => {
 });
 
 // ==========================================
-// ส่วนที่ 4: Global Functions (เรียกจาก HTML)
+// ส่วนที่ 4: Global Functions
 // ==========================================
-
-// ฟังก์ชันลบสินค้า
 window.deleteProduct = async function(id) {
     if(confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้านี้ออกจากระบบ?')) {
         try {
             await deleteDoc(doc(db, "products", id));
         } catch (e) {
-            console.error(e);
             alert("ลบสินค้าไม่สำเร็จ");
         }
     }
 };
 
-// ฟังก์ชันปริ้น PDF
 window.printPDF = function(docId, itemName, code, qty, user, date) {
     document.getElementById('pdfDocId').innerText = docId;
     document.getElementById('pdfUser').innerText = user;
@@ -355,9 +396,6 @@ window.printPDF = function(docId, itemName, code, qty, user, date) {
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
-        element.classList.add('hidden'); // ซ่อนหลังจากเซฟเสร็จ
+        element.classList.add('hidden');
     });
 };
-
-// เริ่มต้นดึงข้อมูลเมื่อโหลดสคริปต์
-loadData();
