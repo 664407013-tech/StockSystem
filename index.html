@@ -96,7 +96,6 @@
                             <h1 class="text-3xl font-bold text-gray-900">ภาพรวมระบบสต็อก</h1>
                             <p class="text-gray-500 mt-1">วิเคราะห์ยอดรับเข้า-เบิกออกตามช่วงเวลา</p>
                         </div>
-                        <!-- เครื่องมือกรองวันที่ -->
                         <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center gap-3">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm text-gray-500 font-medium ml-2">ตั้งแต่วันที่:</span>
@@ -117,7 +116,6 @@
                         </div>
                     </div>
 
-                    <!-- สรุปเปรียบเทียบตามช่วงเวลา -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <p class="text-sm font-medium text-gray-500 mb-1">สินค้าคงคลังปัจจุบัน</p>
@@ -141,7 +139,6 @@
                         </div>
                     </div>
 
-                    <!-- กราฟและตารางเปรียบเทียบ -->
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="col-span-1 lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h3 class="text-lg font-semibold mb-4 text-gray-800">กราฟแสดงจำนวนสินค้าคงเหลือ 10 อันดับแรก</h3>
@@ -171,28 +168,29 @@
                     </div>
                 </section>
 
-                <!-- ================= 2.2 จัดการสต็อก (เพิ่ม/ลบ/แก้ไข) ================= -->
+                <!-- ================= 2.2 จัดการสต็อก (เพิ่ม/ลบ/แก้ไข/เพิ่มสต็อก) ================= -->
                 <section id="stock-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">จัดการสต็อกสินค้า</h1>
                     
+                    <!-- กล่องสร้างสินค้าใหม่เข้าสต็อก -->
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"><i class="fas fa-plus-circle text-indigo-500"></i> เพิ่มสินค้าใหม่</h3>
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"><i class="fas fa-plus-circle text-indigo-500"></i> สร้างรายการสินค้าใหม่</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                             <div class="col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">รหัสสินค้า</label>
-                                <input type="text" id="itemCode" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                                <input type="text" id="itemCode" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="เช่น PROD-01">
                             </div>
                             <div class="col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">ชื่อสินค้า <span class="text-red-500">*</span></label>
-                                <input type="text" id="itemName" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                                <input type="text" id="itemName" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ระบุชื่อสินค้า">
                             </div>
                             <div class="col-span-1">
-                                <label class="block text-sm text-gray-600 mb-1">จำนวนรับเข้า <span class="text-red-500">*</span></label>
-                                <input type="number" id="itemQty" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="0">
+                                <label class="block text-sm text-gray-600 mb-1">จำนวนรับเข้าครั้งแรก <span class="text-red-500">*</span></label>
+                                <input type="number" id="itemQty" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="0" placeholder="0">
                             </div>
                             <div class="col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">ราคา/ชิ้น</label>
-                                <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="0">
+                                <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="0" placeholder="0.00">
                             </div>
                             <div class="col-span-1">
                                 <label class="block text-sm text-gray-600 mb-1">รูปภาพสินค้า</label>
@@ -200,12 +198,13 @@
                             </div>
                         </div>
                         <div class="mt-4 flex justify-end">
-                            <button id="addBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2">
-                                <i class="fas fa-save"></i> บันทึกรับเข้าสต็อก
+                            <button id="addBtn" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 font-medium shadow-sm">
+                                <i class="fas fa-save"></i> บันทึกรายการใหม่
                             </button>
                         </div>
                     </div>
 
+                    <!-- ตารางแสดงรายการสินค้าทั้งหมด -->
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -245,7 +244,7 @@
                                     <label class="block text-sm text-gray-600 mb-1">ผู้เบิก / หมายเหตุ</label>
                                     <input type="text" id="withdrawNote" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="เช่น นายเอ เบิกไปใช้ในแผนกช่าง">
                                 </div>
-                                <button id="withdrawBtn" class="w-full bg-orange-500 text-white px-6 py-3 rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 mt-2">
+                                <button id="withdrawBtn" class="w-full bg-orange-500 text-white px-6 py-3 rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 mt-2 font-medium shadow-sm">
                                     <i class="fas fa-check-circle"></i> ยืนยันการเบิก
                                 </button>
                             </div>
@@ -258,8 +257,44 @@
                     </div>
                 </section>
 
-                <!-- ================= Modal สำหรับแก้ไขข้อมูลสินค้า ================= -->
-                <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm">
+                <!-- ================= Modal 1: สำหรับเพิ่มสต็อกสินค้าเดิม (Restock) ================= -->
+                <div id="restockModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
+                    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative border border-gray-100">
+                        <button onclick="window.closeRestockModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="w-12 h-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-cart-plus"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-1 text-gray-800">เพิ่มสต็อกสินค้า</h3>
+                        <p class="text-sm text-gray-500 mb-6" id="restockItemTitle">กำลังโหลดข้อมูลสินค้า...</p>
+                        
+                        <input type="hidden" id="restockItemId">
+                        <input type="hidden" id="restockItemCode">
+                        <input type="hidden" id="restockItemName">
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">จำนวนที่ต้องการรับเข้าเพิ่ม <span class="text-red-500">*</span></label>
+                                <input type="number" id="restockQtyInput" class="w-full p-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-lg font-semibold text-green-700" min="1" placeholder="ระบุจำนวน...">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ / เลขที่บิล (ถ้ามี)</label>
+                                <input type="text" id="restockNoteInput" class="w-full p-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-500 text-sm" placeholder="เช่น รับเข้าจากซัพพลายเออร์รอบเดือนกรกฎาคม">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8 flex justify-end gap-3">
+                            <button onclick="window.closeRestockModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium">ยกเลิก</button>
+                            <button id="saveRestockBtn" class="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition font-medium flex items-center gap-2 shadow-sm">
+                                <i class="fas fa-plus"></i> ยืนยันเพิ่มสต็อก
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= Modal 2: สำหรับแก้ไขข้อมูลสินค้า ================= -->
+                <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
                     <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-lg relative border border-gray-100">
                         <button onclick="window.closeEditModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl transition">
                             <i class="fas fa-times"></i>
@@ -296,7 +331,7 @@
                         
                         <div class="mt-8 flex justify-end gap-3">
                             <button onclick="window.closeEditModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium">ยกเลิก</button>
-                            <button id="saveEditBtn" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium flex items-center gap-2">
+                            <button id="saveEditBtn" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium flex items-center gap-2 shadow-sm">
                                 <i class="fas fa-save"></i> บันทึกการแก้ไข
                             </button>
                         </div>
@@ -322,6 +357,7 @@
                         <div class="text-center"><p class="mb-8">________________________</p><p>ผู้อนุมัติ / ผู้จ่ายของ</p></div>
                     </div>
                 </div>
+
             </div>
         </main>
     </div>
