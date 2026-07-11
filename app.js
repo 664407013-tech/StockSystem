@@ -24,7 +24,7 @@ let products = [];
 let withdrawHistory = []; 
 let addHistory = []; 
 let unsubscribeProducts = null, unsubscribeHistory = null, unsubscribeAddHistory = null;
-let currentPrintData = {}; // เก็บข้อมูลชั่วคราวก่อนพิมพ์
+let currentPrintData = {}; 
 
 // ==========================================
 // 1. ระบบ Authentication
@@ -78,7 +78,6 @@ function getBase64(file) {
     });
 }
 
-// ฟังก์ชันช่วยค้นหาสินค้าจากรายการประวัติการเบิก (เพื่อใช้ปรับปรุงสต็อกตอนแก้ไขหรือลบ)
 function findProductForHistory(item) {
     return products.find(p => p.id === item.productId) || 
            products.find(p => p.code !== '-' && p.code === item.code) || 
@@ -201,38 +200,91 @@ document.getElementById('clearDashBtn').addEventListener('click', () => {
 });
 
 // ==========================================
-// 4. การจัดการตารางและการเบิก (Stock & Withdraw UI)
+// 4. การจัดการตารางและการเบิก (อัปเกรดระบบค้นหา & สถานะสต็อก)
 // ==========================================
+
+// ตัวจับเหตุการณ์พิมพ์ค้นหาสินค้าแบบ Real-time
+document.getElementById('productSearchInput')?.addEventListener('input', () => {
+    updateStockTable();
+});
+// ปุ่มล้างคำค้นหา
+document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
+    const searchInput = document.getElementById('productSearchInput');
+    if(searchInput) searchInput.value = '';
+    updateStockTable();
+});
+
 function updateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     const select = document.getElementById('withdrawSelect');
+    const searchInput = document.getElementById('productSearchInput');
+    const countText = document.getElementById('searchCountText');
     if(!tbody || !select) return; 
 
     tbody.innerHTML = ''; 
     select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
 
-    products.forEach(p => {
-        const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
-        
-        tbody.innerHTML += `
-            <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
-                <td class="p-4">${imgTag}</td>
-                <td class="p-4 font-medium text-gray-900">${p.code || '-'}</td>
-                <td class="p-4">${p.name || '-'}</td>
-                <td class="p-4 ${p.qty < 10 ? 'text-red-600 font-bold bg-red-50 rounded-lg px-2 py-1 inline-block mt-2' : 'text-gray-600'}">${(p.qty||0).toLocaleString()}</td>
-                <td class="p-4 text-gray-600">฿${(p.price||0).toLocaleString()}</td>
-                <td class="p-4 text-center whitespace-nowrap">
-                    <button class="text-green-600 bg-green-50 hover:bg-green-600 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openRestockModal('${p.id}')" title="เพิ่มสต็อกเข้า"><i class="fas fa-plus-circle"></i></button>
-                    <button class="text-blue-500 bg-blue-50 hover:bg-blue-500 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openEditModal('${p.id}')" title="แก้ไขข้อมูล"><i class="fas fa-edit"></i></button>
-                    <button class="text-red-500 bg-red-50 hover:bg-red-500 hover:text-white p-2 rounded-lg transition" onclick="window.deleteProduct('${p.id}')" title="ลบสินค้า"><i class="fas fa-trash"></i></button>
+    // 1. กรองสินค้าตามคำค้นหา (ค้นหาทั้งชื่อ และ รหัสสินค้า)
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const filteredProducts = products.filter(p => {
+        const matchCode = (p.code || '').toLowerCase().includes(searchQuery);
+        const matchName = (p.name || '').toLowerCase().includes(searchQuery);
+        return matchCode || matchName;
+    });
+
+    if(countText) countText.innerText = filteredProducts.length;
+
+    if(filteredProducts.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="p-8 text-center text-gray-400 bg-gray-50/50">
+                    <i class="fas fa-box-open text-3xl mb-2 block text-gray-300"></i>
+                    ไม่พบรายการสินค้าที่ตรงกับคำค้นหา
                 </td>
-            </tr>
-        `;
+            </tr>`;
+    } else {
+        filteredProducts.forEach(p => {
+            const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
+            
+            // ⚠️ อัปเกรด: คำนวณและติดป้ายสถานะสต็อกอัตโนมัติ ⚠️
+            let statusBadge = '';
+            let qtyClass = 'text-gray-700 font-medium';
+            if ((p.qty || 0) === 0) {
+                statusBadge = `<span class="ml-2 bg-red-100 text-red-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-red-200 inline-flex items-center gap-1"><i class="fas fa-exclamation-circle text-[10px]"></i> สินค้าหมด</span>`;
+                qtyClass = 'text-red-600 font-bold';
+            } else if ((p.qty || 0) < 10) {
+                statusBadge = `<span class="ml-2 bg-amber-100 text-amber-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-200 inline-flex items-center gap-1"><i class="fas fa-clock text-[10px]"></i> ใกล้หมด</span>`;
+                qtyClass = 'text-amber-600 font-bold';
+            } else {
+                statusBadge = `<span class="ml-2 bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-medium border border-green-200 inline-flex items-center gap-1"><i class="fas fa-check-circle text-[10px]"></i> ปกติ</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
+                    <td class="p-4">${imgTag}</td>
+                    <td class="p-4 font-medium text-gray-900">${p.code || '-'}</td>
+                    <td class="p-4 font-medium text-gray-800">${p.name || '-'}</td>
+                    <td class="p-4 whitespace-nowrap">
+                        <span class="${qtyClass} text-base">${(p.qty||0).toLocaleString()}</span>
+                        ${statusBadge}
+                    </td>
+                    <td class="p-4 text-gray-600">฿${(p.price||0).toLocaleString()}</td>
+                    <td class="p-4 text-center whitespace-nowrap">
+                        <button class="text-green-600 bg-green-50 hover:bg-green-600 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openRestockModal('${p.id}')" title="เพิ่มสต็อกเข้า"><i class="fas fa-plus-circle"></i></button>
+                        <button class="text-blue-500 bg-blue-50 hover:bg-blue-500 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openEditModal('${p.id}')" title="แก้ไขข้อมูล"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-500 bg-red-50 hover:bg-red-500 hover:text-white p-2 rounded-lg transition" onclick="window.deleteProduct('${p.id}')" title="ลบสินค้า"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // 2. เติมตัวเลือกใน Dropdown หน้าเบิกสินค้า (แสดงสินค้าทั้งหมดที่มีสต็อก)
+    products.forEach(p => {
         if((p.qty||0) > 0) select.innerHTML += `<option value="${p.id}">${p.code || '-'} - ${p.name} (คงเหลือ: ${p.qty})</option>`;
     });
 }
 
-// ⚠️ อัปเกรด: เพิ่มปุ่ม "แก้ไข" และ "ลบ" ในประวัติการเบิก ⚠️
 function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
@@ -354,7 +406,7 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
         const dateStr = getFormattedDate();
         
         await addDoc(collection(db, "withdraw_history"), { 
-            productId: id, // บันทึก id สินค้าไว้ใช้อ้างอิงตอนแก้ไข/ลบ
+            productId: id, 
             docId, itemName: product.name, code: product.code, qty, note, date: dateStr, timestamp: Date.now() 
         });
 
@@ -432,7 +484,6 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกการแก้ไข'; btn.disabled = false;
 });
 
-// ⚠️ อัปเกรด: ฟังก์ชันบันทึกการแก้ไขประวัติการเบิก (ปรับสต็อกอัตโนมัติ) ⚠️
 document.getElementById('saveEditWithdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('editWithdrawId').value;
     const oldQty = Number(document.getElementById('editWithdrawOldQty').value) || 0;
@@ -448,11 +499,10 @@ document.getElementById('saveEditWithdrawBtn').addEventListener('click', async (
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true;
 
     try {
-        // ถ้ายอดเบิกเปลี่ยน ต้องปรับยอดสต็อกปัจจุบันด้วย
         if(oldQty !== newQty) {
             const product = findProductForHistory(item);
             if(product) {
-                const diff = oldQty - newQty; // เช่น เดิม 5 ใหม่ 3 => diff = +2 (ต้องคืนเข้าสต็อก)
+                const diff = oldQty - newQty; 
                 const newStock = (product.qty || 0) + diff;
                 
                 if(newStock < 0) {
@@ -512,7 +562,6 @@ window.deleteProduct = async (id) => {
     }
 };
 
-// ⚠️ อัปเกรด: เปิด Modal แก้ไขประวัติการเบิก ⚠️
 window.openEditWithdrawModal = function(id) {
     const item = withdrawHistory.find(h => h.id === id);
     if(!item) return;
@@ -526,7 +575,6 @@ window.openEditWithdrawModal = function(id) {
 
 window.closeEditWithdrawModal = () => document.getElementById('editWithdrawModal').classList.add('hidden');
 
-// ⚠️ อัปเกรด: ฟังก์ชันลบประวัติการเบิก พร้อมคืนยอดสินค้าเข้าสต็อกให้อัตโนมัติ ⚠️
 window.deleteWithdraw = async (id) => {
     const item = withdrawHistory.find(h => h.id === id);
     if(!item) return;
@@ -546,7 +594,6 @@ window.deleteWithdraw = async (id) => {
     }
 };
 
-// ระบบพิมพ์: เปิด Modal ตัวอย่างเอกสารก่อน (Print Preview)
 window.printPDF = (id, name, code, qty, user, date) => {
     currentPrintData = { id, name, code, qty, user, date };
     document.getElementById('pdfDocId').innerText = id || '-'; 
