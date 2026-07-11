@@ -1,16 +1,43 @@
-body { font-family: 'Prompt', sans-serif; }
+body { 
+    font-family: 'Prompt', sans-serif; 
+}
+
+/* Custom Scrollbar สำหรับ PC และ Tablet */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Animation ตอนเปลี่ยนหน้าหรือเปิด Modal */
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.nav-btn.active { background-color: #e0e7ff; color: #4f46e5; font-weight: 500; }
+
+/* ปุ่มเมนูที่ถูกเลือก */
+.nav-btn.active { 
+    background-color: #e0e7ff; 
+    color: #4f46e5; 
+    font-weight: 500; 
+}
 .nav-btn.active i { color: #4f46e5; }
+
+/* ==========================================
+   Responsive Sidebar สำหรับ Mobile และ Tablet (<= 768px)
+========================================== */
 @media (max-width: 768px) {
-    #sidebar { position: absolute; z-index: 50; height: 100%; transform: translateX(-100%); }
-    #sidebar.show { transform: translateX(0); box-shadow: 10px 0 15px -3px rgba(0, 0, 0, 0.1); }
+    #sidebar { 
+        position: fixed; 
+        top: 0;
+        left: 0;
+        z-index: 50; 
+        height: 100%; 
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+    #sidebar.show { 
+        transform: translateX(0); 
+        box-shadow: 15px 0 25px -5px rgba(0, 0, 0, 0.15); 
+    }
 }
