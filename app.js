@@ -209,7 +209,6 @@ function updateStockTable() {
     products.forEach(p => {
         const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
         
-        // ⚠️ เพิ่มปุ่ม "เพิ่มสต็อก" (สีเขียว) ตรงช่องจัดการ ⚠️
         tbody.innerHTML += `
             <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
                 <td class="p-4">${imgTag}</td>
@@ -228,31 +227,67 @@ function updateStockTable() {
     });
 }
 
+// ⚠️ ฟังก์ชันแสดงและกรองประวัติการเบิกออก (อัปเกรดใหม่) ⚠️
 function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
     trackList.innerHTML = '';
     
-    if(withdrawHistory.length === 0) {
-        trackList.innerHTML = '<div class="text-gray-400 text-sm text-center py-8">ไม่มีประวัติการเบิก</div>';
+    // ดึงค่าจากตัวกรองวันที่
+    const startDateVal = document.getElementById('withdrawStartDate')?.value;
+    const endDateVal = document.getElementById('withdrawEndDate')?.value;
+    let filteredHistory = [...withdrawHistory];
+
+    // คำนวณช่วงเวลาสำหรับการกรอง
+    if (startDateVal && endDateVal) {
+        const start = new Date(startDateVal).setHours(0,0,0,0);
+        const end = new Date(endDateVal).setHours(23,59,59,999);
+        filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+    } else if (startDateVal) {
+        // ถ้าเลือกแค่จุดเริ่มต้น ให้แสดงเฉพาะของวันนั้นวันเดียว
+        const start = new Date(startDateVal).setHours(0,0,0,0);
+        const end = new Date(startDateVal).setHours(23,59,59,999);
+        filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+    }
+    
+    if(filteredHistory.length === 0) {
+        trackList.innerHTML = `
+            <div class="text-gray-400 text-sm text-center py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                <i class="fas fa-folder-open text-3xl mb-2 block text-gray-300"></i>
+                ไม่พบประวัติการเบิกตามช่วงเวลาที่กำหนด
+            </div>`;
     } else {
-        withdrawHistory.forEach(h => {
+        filteredHistory.forEach(h => {
             trackList.innerHTML += `
-                <div class="p-4 border border-gray-100 rounded-xl bg-white shadow-sm flex justify-between items-center mb-3">
+                <div class="p-4 border border-gray-100 rounded-xl bg-white shadow-sm flex justify-between items-center mb-3 hover:border-indigo-100 hover:shadow transition-all">
                     <div>
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-md font-bold">เบิกออก</span>
+                            <span class="bg-orange-100 text-orange-700 text-xs px-2.5 py-0.5 rounded-md font-bold">เบิกออก</span>
                             <span class="text-sm font-semibold text-gray-800">${h.docId}</span>
                         </div>
                         <p class="text-sm text-gray-700">เบิก: <strong>${h.itemName || '-'}</strong> <span class="text-orange-600 font-bold">(${h.qty} ชิ้น)</span></p>
-                        <p class="text-xs text-gray-400 mt-1">${h.note || '-'} | ${h.date}</p>
+                        <p class="text-xs text-gray-400 mt-1"><i class="fas fa-user-edit mr-1"></i>${h.note || '-'} | <i class="fas fa-clock ml-1 mr-1"></i>${h.date}</p>
                     </div>
-                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all"><i class="fas fa-print"></i></button>
+                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="พิมพ์ใบเบิก PDF"><i class="fas fa-print"></i></button>
                 </div>
             `;
         });
     }
 }
+
+// Event Listeners สำหรับปุ่มกรองและปุ่มล้างค่าในหน้าประวัติการเบิก
+document.getElementById('filterWithdrawBtn')?.addEventListener('click', () => {
+    if (!document.getElementById('withdrawStartDate').value && !document.getElementById('withdrawEndDate').value) {
+        alert("กรุณาเลือกวันที่ที่ต้องการกรอง"); return;
+    }
+    updateWithdrawList();
+});
+
+document.getElementById('clearWithdrawBtn')?.addEventListener('click', () => {
+    document.getElementById('withdrawStartDate').value = '';
+    document.getElementById('withdrawEndDate').value = '';
+    updateWithdrawList();
+});
 
 function getFormattedDate() {
     const now = new Date();
@@ -282,7 +317,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     try {
         await addDoc(collection(db, "products"), { code, name, qty, price, image: base64Image });
         
-        // ถ้าใส่จำนวนเริ่มต้นมากกว่า 0 ให้บันทึกประวัติรับเข้าด้วย
         if(qty > 0) {
             await addDoc(collection(db, "add_history"), {
                 docId: 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
@@ -328,7 +362,7 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก'; btn.disabled = false;
 });
 
-// 5.3 บันทึกการเพิ่มสต็อกสินค้าเดิม (Restock Existing Item) - ฟังก์ชันใหม่!
+// 5.3 บันทึกการเพิ่มสต็อกสินค้าเดิม (Restock Existing Item)
 document.getElementById('saveRestockBtn').addEventListener('click', async () => {
     const id = document.getElementById('restockItemId').value;
     const code = document.getElementById('restockItemCode').value;
@@ -345,11 +379,9 @@ document.getElementById('saveRestockBtn').addEventListener('click', async () => 
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true;
 
     try {
-        // 1. อัปเดตยอดคงเหลือในตารางหลัก
         const newTotalQty = (product.qty || 0) + addQty;
         await updateDoc(doc(db, "products", id), { qty: newTotalQty });
 
-        // 2. บันทึกลงประวัติรับเข้า (Add History) เพื่อให้ระบบสรุปยอด Dashboard คำนวณได้
         const docId = 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         await addDoc(collection(db, "add_history"), {
             docId: docId,
@@ -398,8 +430,6 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
 // ==========================================
 // 6. Global Functions สำหรับเรียกใช้จาก HTML
 // ==========================================
-
-// เปิดหน้าต่างเพิ่มสต็อก
 window.openRestockModal = function(id) {
     const product = products.find(p => p.id === id);
     if(!product) return;
@@ -415,7 +445,6 @@ window.openRestockModal = function(id) {
 
 window.closeRestockModal = () => document.getElementById('restockModal').classList.add('hidden');
 
-// เปิดหน้าต่างแก้ไขสินค้า
 window.openEditModal = function(id) {
     const product = products.find(p => p.id === id);
     if(!product) return;
