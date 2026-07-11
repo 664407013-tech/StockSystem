@@ -3,665 +3,273 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการสต็อกสินค้า</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Prompt) -->
+    <title>StockPro - System</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ใช้ html2pdf เวอร์ชันเสถียรสุด -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
     <style>
-        body {
-            font-family: 'Prompt', sans-serif;
-            background-color: #f8fafc;
-        }
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-            .print-only {
-                display: block !important;
-            }
-            body {
-                background-color: white;
-            }
-            .shadow, .shadow-md, .shadow-lg {
-                box-shadow: none !important;
-            }
-        }
-        .print-only {
-            display: none;
-        }
+        body { font-family: 'Prompt', sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="bg-gray-50 text-gray-800">
 
-    <!-- Header / Navigation (No Print) -->
-    <header class="bg-indigo-600 text-white shadow-lg no-print">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <i class="fa-solid fa-boxes-stacked text-2xl"></i>
-                <h1 class="text-xl font-semibold">ระบบจัดการสต็อกสินค้า</h1>
+    <!-- 1. หน้าล็อกอิน -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-indigo-900 p-4 relative overflow-hidden">
+        <div class="bg-white/95 backdrop-blur-sm p-10 rounded-3xl shadow-2xl max-w-md w-full text-center relative z-10 border border-white/20">
+            <div class="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white text-3xl shadow-lg">
+                <i class="fas fa-shield-alt"></i>
             </div>
-            <!-- Navigation Tabs -->
-            <nav class="flex space-x-1 mt-3 sm:mt-0 bg-indigo-700 p-1 rounded-lg">
-                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white text-indigo-700 shadow">
-                    <i class="fa-solid fa-chart-pie mr-1"></i> ภาพรวมระบบ
-                </button>
-                <button onclick="switchTab('inventory')" id="tab-inventory" class="px-4 py-2 rounded-md text-sm font-medium transition-colors text-indigo-100 hover:bg-indigo-600">
-                    <i class="fa-solid fa-box mr-1"></i> จัดการสต็อกสินค้า
-                </button>
-                <button onclick="switchTab('requisition')" id="tab-requisition" class="px-4 py-2 rounded-md text-sm font-medium transition-colors text-indigo-100 hover:bg-indigo-600">
-                    <i class="fa-solid fa-cart-flatbed mr-1"></i> ทำรายการเบิกสินค้า
-                </button>
-            </nav>
-        </div>
-    </header>
-
-    <!-- Main Content Area -->
-    <main class="max-w-7xl mx-auto px-4 py-8">
-
-        <!-- ================= PAGE 1: ภาพรวมระบบสต็อก (Dashboard) ================= -->
-        <section id="page-dashboard" class="space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-semibold text-gray-800"><i class="fa-solid fa-chart-line text-indigo-600 mr-2"></i>ภาพรวมระบบสต็อก</h2>
-                <span class="text-sm text-gray-500" id="current-date-display"></span>
-            </div>
-
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">สินค้าทั้งหมด</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-total-items">0</h3>
-                        <p class="text-xs text-green-500 mt-1">รายการ</p>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 text-xl">
-                        <i class="fa-solid fa-cubes"></i>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">มูลค่าสต็อกรวม</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="dash-total-value">฿0</h3>
-                        <p class="text-xs text-gray-400 mt-1">บาท</p>
-                    </div>
-                    <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 text-xl">
-                        <i class="fa-solid fa-sack-dollar"></i>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">สินค้าใกล้หมดสต็อก</p>
-                        <h3 class="text-3xl font-bold text-amber-500 mt-1" id="dash-low-stock">0</h3>
-                        <p class="text-xs text-amber-500 mt-1">ต้องสั่งซื้อเพิ่ม (น้อยกว่า 10 ชิ้น)</p>
-                    </div>
-                    <div class="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 text-xl">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">รายการเบิกทั้งหมด</p>
-                        <h3 class="text-3xl font-bold text-indigo-600 mt-1" id="dash-total-req">0</h3>
-                        <p class="text-xs text-gray-400 mt-1">ครั้ง</p>
-                    </div>
-                    <div class="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 text-xl">
-                        <i class="fa-solid fa-clipboard-list"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Requisitions Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                    <h3 class="font-semibold text-gray-800"><i class="fa-solid fa-clock-rotate-left mr-2 text-indigo-600"></i>รายการเบิกสินค้าล่าสุด</h3>
-                    <button onclick="switchTab('requisition')" class="text-sm text-indigo-600 hover:underline">ดูทั้งหมด</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 text-gray-600 text-sm border-b border-gray-100">
-                                <th class="p-4">วันที่/เวลา</th>
-                                <th class="p-4">รหัสใบเบิก</th>
-                                <th class="p-4">ผู้เบิก</th>
-                                <th class="p-4">รายการสินค้า</th>
-                                <th class="p-4 text-center">จำนวน</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dash-req-table" class="divide-y divide-gray-100 text-sm">
-                            <!-- JS will populate this -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= PAGE 2: จัดการสต็อกสินค้า (Inventory Management) ================= -->
-        <section id="page-inventory" class="space-y-6 hidden">
-            <!-- Header & Action Buttons -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 class="text-2xl font-semibold text-gray-800"><i class="fa-solid fa-boxes-packing text-indigo-600 mr-2"></i>จัดการสต็อกสินค้า</h2>
-                
-                <div class="flex flex-wrap gap-2 no-print">
-                    <!-- ปุ่มปริ้นเอกสาร (คงไว้ตามต้องการ) -->
-                    <button onclick="printInventoryReport()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm transition shadow flex items-center">
-                        <i class="fa-solid fa-print mr-2"></i> ปริ้นรายงานสต็อก
-                    </button>
-                    <!-- ปุ่มเพิ่มสินค้า -->
-                    <button onclick="openProductModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition shadow flex items-center">
-                        <i class="fa-solid fa-plus mr-2"></i> เพิ่มสินค้าใหม่
-                    </button>
-                </div>
-            </div>
-
-            <!-- Print Header (Shows only when printing) -->
-            <div class="print-only text-center mb-6">
-                <h1 class="text-2xl font-bold">รายงานคงเหลือสต็อกสินค้า</h1>
-                <p class="text-sm text-gray-600 mt-1" id="print-date-display"></p>
-                <hr class="my-4 border-gray-300">
-            </div>
-
-            <!-- Search and Filter (No Print) -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4 no-print">
-                <div class="relative flex-1">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
-                    <input type="text" id="search-product" oninput="renderInventory()" placeholder="ค้นหาชื่อสินค้า, รหัสสินค้า..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                </div>
-                <div class="w-full sm:w-48">
-                    <select id="filter-category" onchange="renderInventory()" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
-                        <option value="all">หมวดหมู่ทั้งหมด</option>
-                        <option value="อุปกรณ์สำนักงาน">อุปกรณ์สำนักงาน</option>
-                        <option value="อุปกรณ์ไอที">อุปกรณ์ไอที</option>
-                        <option value="เครื่องเขียน">เครื่องเขียน</option>
-                        <option value="อื่นๆ">อื่นๆ</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Inventory Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 text-gray-600 text-sm border-b border-gray-100">
-                                <th class="p-4">รหัสสินค้า</th>
-                                <th class="p-4">ชื่อสินค้า</th>
-                                <th class="p-4">หมวดหมู่</th>
-                                <th class="p-4 text-right">ราคา/หน่วย</th>
-                                <th class="p-4 text-center">คงเหลือ</th>
-                                <th class="p-4 text-center">สถานะ</th>
-                                <th class="p-4 text-center no-print">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-table" class="divide-y divide-gray-100 text-sm">
-                            <!-- JS will populate this -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= PAGE 3: ทำรายการเบิกสินค้า (Requisition) ================= -->
-        <section id="page-requisition" class="space-y-6 hidden">
-            <h2 class="text-2xl font-semibold text-gray-800 no-print"><i class="fa-solid fa-file-signature text-indigo-600 mr-2"></i>ทำรายการเบิกสินค้า</h2>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 no-print">
-                <!-- Requisition Form -->
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-1 h-fit">
-                    <h3 class="font-semibold text-gray-800 border-b pb-3 mb-4"><i class="fa-solid fa-cart-plus mr-2 text-indigo-600"></i>สร้างรายการเบิกใหม่</h3>
-                    <form id="requisition-form" onsubmit="handleRequisition(event)" class="space-y-4 text-sm">
-                        <div>
-                            <label class="block text-gray-600 mb-1">เลือกสินค้าที่ต้องการเบิก <span class="text-red-500">*</span></label>
-                            <select id="req-product" required onchange="updateMaxReqQty()" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                <option value="">-- กรุณาเลือกสินค้า --</option>
-                            </select>
-                            <p class="text-xs text-gray-500 mt-1" id="req-stock-hint">คงเหลือในสต็อก: -</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-600 mb-1">จำนวนที่เบิก <span class="text-red-500">*</span></label>
-                            <input type="number" id="req-qty" required min="1" placeholder="ระบุจำนวน" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-600 mb-1">ชื่อผู้เบิก / แผนก <span class="text-red-500">*</span></label>
-                            <input type="text" id="req-name" required placeholder="เช่น สมชาย (ฝ่ายไอที)" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-gray-600 mb-1">วัตถุประสงค์การนำไปใช้</label>
-                            <textarea id="req-reason" rows="2" placeholder="เช่น ใช้ในห้องประชุมชั้น 2..." class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-                        </div>
-
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition font-medium shadow">
-                            <i class="fa-solid fa-check mr-2"></i> ยืนยันการเบิกสินค้า
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Requisition History Table -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 lg:col-span-2 overflow-hidden">
-                    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-                        <h3 class="font-semibold text-gray-800"><i class="fa-solid fa-list-check mr-2 text-indigo-600"></i>ประวัติการเบิกสินค้าทั้งหมด</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-gray-50 text-gray-600 text-sm border-b border-gray-100">
-                                    <th class="p-4">รหัสใบเบิก</th>
-                                    <th class="p-4">วันที่/เวลา</th>
-                                    <th class="p-4">ผู้เบิก</th>
-                                    <th class="p-4">สินค้า</th>
-                                    <th class="p-4 text-center">จำนวน</th>
-                                    <th class="p-4 text-center">เอกสาร</th>
-                                </tr>
-                            </thead>
-                            <tbody id="requisition-table" class="divide-y divide-gray-100 text-sm">
-                                <!-- JS will populate this -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Print View for Requisition Slip (Hidden on normal web view, Shows on print modal) -->
-            <div id="print-slip-area" class="print-only p-8 max-w-2xl mx-auto border border-gray-300 rounded-lg">
-                <div class="text-center pb-4 border-b border-gray-300 mb-6">
-                    <h1 class="text-2xl font-bold">ใบเบิกสินค้า (Requisition Slip)</h1>
-                    <p class="text-sm text-gray-500 mt-1">รหัสใบเบิก: <span id="slip-id" class="font-semibold text-gray-800"></span></p>
-                </div>
-                <div class="space-y-4 text-base mb-8">
-                    <div class="flex justify-between border-b pb-2">
-                        <span class="text-gray-600">วันที่และเวลาที่เบิก:</span>
-                        <span id="slip-date" class="font-medium"></span>
-                    </div>
-                    <div class="flex justify-between border-b pb-2">
-                        <span class="text-gray-600">ชื่อผู้เบิก / แผนก:</span>
-                        <span id="slip-name" class="font-medium"></span>
-                    </div>
-                    <div class="flex justify-between border-b pb-2">
-                        <span class="text-gray-600">รายการสินค้า:</span>
-                        <span id="slip-product" class="font-medium"></span>
-                    </div>
-                    <div class="flex justify-between border-b pb-2">
-                        <span class="text-gray-600">จำนวนที่เบิก:</span>
-                        <span id="slip-qty" class="font-medium"></span>
-                    </div>
-                    <div class="flex justify-between border-b pb-2">
-                        <span class="text-gray-600">วัตถุประสงค์:</span>
-                        <span id="slip-reason" class="font-medium">-</span>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-8 mt-16 pt-8 text-center">
-                    <div>
-                        <div class="border-b border-gray-400 w-3/4 mx-auto mb-2"></div>
-                        <p class="text-sm text-gray-600">ผู้ขอเบิกสินค้า</p>
-                    </div>
-                    <div>
-                        <div class="border-b border-gray-400 w-3/4 mx-auto mb-2"></div>
-                        <p class="text-sm text-gray-600">ผู้อนุมัติ / จ่ายสินค้า</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Modal เพิ่ม/แก้ไข สินค้า -->
-    <div id="product-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden no-print">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div class="bg-indigo-600 text-white px-6 py-4 flex justify-between items-center">
-                <h3 class="font-semibold" id="modal-title">เพิ่มสินค้าใหม่</h3>
-                <button onclick="closeProductModal()" class="text-indigo-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form id="product-form" onsubmit="saveProduct(event)" class="p-6 space-y-4 text-sm">
-                <input type="hidden" id="prod-original-id">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">StockPro System</h2>
+            <p class="text-gray-500 text-sm mb-8">กรุณายืนยันตัวตนเพื่อเข้าสู่ระบบจัดการสต็อก</p>
+            
+            <div class="space-y-4 text-left">
                 <div>
-                    <label class="block text-gray-600 mb-1">รหัสสินค้า <span class="text-red-500">*</span></label>
-                    <input type="text" id="prod-id" required placeholder="เช่น IT-001" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">อีเมลผู้ใช้งาน</label>
+                    <input type="email" id="loginEmail" class="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="admin@domain.com">
                 </div>
                 <div>
-                    <label class="block text-gray-600 mb-1">ชื่อสินค้า <span class="text-red-500">*</span></label>
-                    <input type="text" id="prod-name" required placeholder="เช่น กระดาษ A4" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                    <input type="password" id="loginPassword" class="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••••••">
                 </div>
-                <div>
-                    <label class="block text-gray-600 mb-1">หมวดหมู่</label>
-                    <select id="prod-category" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                        <option value="อุปกรณ์สำนักงาน">อุปกรณ์สำนักงาน</option>
-                        <option value="อุปกรณ์ไอที">อุปกรณ์ไอที</option>
-                        <option value="เครื่องเขียน">เครื่องเขียน</option>
-                        <option value="อื่นๆ">อื่นๆ</option>
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-600 mb-1">ราคา/หน่วย (฿)</label>
-                        <input type="number" id="prod-price" min="0" step="0.01" required value="0" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600 mb-1">จำนวนคงเหลือ</label>
-                        <input type="number" id="prod-qty" min="0" required value="10" class="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                </div>
-                <div class="pt-4 flex justify-end space-x-2 border-t mt-6">
-                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition font-medium">ยกเลิก</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition font-medium shadow">บันทึกข้อมูล</button>
-                </div>
-            </form>
+                <button id="loginBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3.5 rounded-xl hover:opacity-90 transition font-medium mt-2 shadow-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- JavaScript logic -->
-    <script>
-        // ข้อมูลเริ่มต้นสำหรับระบบ
-        const defaultProducts = [
-            { id: 'OFF-001', name: 'กระดาษ A4 (80 แกรม)', category: 'อุปกรณ์สำนักงาน', price: 120, qty: 45 },
-            { id: 'IT-001', name: 'เมาส์ไร้สาย Logitech', category: 'อุปกรณ์ไอที', price: 350, qty: 8 },
-            { id: 'STA-001', name: 'ปากกาลูกลื่น สีน้ำเงิน (กล่อง)', category: 'เครื่องเขียน', price: 60, qty: 25 },
-            { id: 'IT-002', name: 'คีย์บอร์ด USB', category: 'อุปกรณ์ไอที', price: 250, qty: 5 },
-            { id: 'OFF-002', name: 'แฟ้มตราช้าง 2 นิ้ว', category: 'อุปกรณ์สำนักงาน', price: 85, qty: 30 }
-        ];
+    <!-- 2. หน้าหลักของแอป -->
+    <div id="main-app" class="hidden flex h-screen overflow-hidden fade-in bg-gray-50">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col z-20">
+            <div class="p-6 flex items-center gap-3 text-indigo-600 border-b border-gray-100">
+                <i class="fas fa-box-open text-3xl"></i>
+                <h2 class="text-xl font-bold">StockPro</h2>
+            </div>
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition nav-btn active" data-target="dashboard-view">
+                    <i class="fas fa-chart-pie w-5"></i> ภาพรวมระบบ
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition nav-btn" data-target="stock-view">
+                    <i class="fas fa-boxes w-5"></i> จัดการสต็อก
+                </button>
+                <button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition nav-btn" data-target="withdraw-view">
+                    <i class="fas fa-file-export w-5"></i> ทำรายการเบิก
+                </button>
+            </nav>
+            <div class="p-4 border-t border-gray-100">
+                <div class="mb-3 px-2">
+                    <p class="text-xs text-gray-400">ผู้ใช้งานปัจจุบัน:</p>
+                    <p class="text-sm font-medium text-gray-700 truncate" id="currentUserDisplay">...</p>
+                </div>
+                <button id="logoutBtn" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition text-sm font-medium">
+                    <i class="fas fa-power-off"></i> ออกจากระบบ
+                </button>
+            </div>
+        </aside>
 
-        let products = JSON.parse(localStorage.getItem('my_inventory_products')) || defaultProducts;
-        let requisitions = JSON.parse(localStorage.getItem('my_inventory_reqs')) || [];
+        <main class="flex-1 flex flex-col overflow-hidden relative">
+            <div class="flex-1 overflow-y-auto p-6 md:p-8">
+                
+                <!-- 2.1 ภาพรวมระบบ -->
+                <section id="dashboard-view" class="view-section active fade-in">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-6">ภาพรวมระบบสต็อก</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                            <p class="text-sm text-gray-500 mb-1">สินค้าคงคลังทั้งหมด</p>
+                            <h3 class="text-3xl font-bold text-gray-800" id="dashCurrentItems">0</h3>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                            <p class="text-sm text-gray-500 mb-1">มูลค่ารวม</p>
+                            <h3 class="text-3xl font-bold text-blue-600" id="dashCurrentValue">฿0</h3>
+                        </div>
+                        <div class="bg-blue-50 rounded-2xl p-6 shadow-sm border border-blue-100">
+                            <p class="text-sm text-blue-600 mb-1"><i class="fas fa-arrow-down mr-1"></i> ยอดรับเข้าทั้งหมด</p>
+                            <h3 class="text-3xl font-bold text-blue-700" id="dashAddedPeriod">0 <span class="text-sm font-normal">ชิ้น</span></h3>
+                        </div>
+                        <div class="bg-orange-50 rounded-2xl p-6 shadow-sm border border-orange-100">
+                            <p class="text-sm text-orange-600 mb-1"><i class="fas fa-arrow-up mr-1"></i> ยอดเบิกออกทั้งหมด</p>
+                            <h3 class="text-3xl font-bold text-orange-700" id="dashWithdrawnPeriod">0 <span class="text-sm font-normal">ชิ้น</span></h3>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800">10 อันดับสินค้าคงเหลือในคลัง</h3>
+                        <div class="h-[350px]"><canvas id="stockChart"></canvas></div>
+                    </div>
+                </section>
 
-        // ฟังก์ชันเปลี่ยนหน้า (Tab Switching)
-        function switchTab(tabId) {
-            ['dashboard', 'inventory', 'requisition'].forEach(id => {
-                document.getElementById(`page-${id}`).classList.add('hidden');
-                const btn = document.getElementById(`tab-${id}`);
-                btn.className = "px-4 py-2 rounded-md text-sm font-medium transition-colors text-indigo-100 hover:bg-indigo-600";
-            });
+                <!-- 2.2 จัดการสต็อก -->
+                <section id="stock-view" class="view-section fade-in hidden">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-6">จัดการสต็อกสินค้า</h1>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                        <h3 class="text-md font-semibold mb-4 text-gray-800 border-b pb-2"><i class="fas fa-plus-circle text-indigo-500 mr-2"></i>สร้างรายการสินค้าใหม่</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">รหัสสินค้า</label>
+                                <input type="text" id="itemCode" class="w-full p-2.5 border rounded-xl outline-none text-sm" placeholder="PROD-01">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ชื่อสินค้า *</label>
+                                <input type="text" id="itemName" class="w-full p-2.5 border rounded-xl outline-none text-sm" placeholder="ระบุชื่อสินค้า">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">จำนวนรับเข้า *</label>
+                                <input type="number" id="itemQty" class="w-full p-2.5 border rounded-xl outline-none text-sm" min="0" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ราคา/ชิ้น</label>
+                                <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl outline-none text-sm" min="0" placeholder="0.00">
+                            </div>
+                            <div>
+                                <button id="addBtn" class="w-full bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 transition font-medium text-sm flex items-center justify-center gap-2">
+                                    <i class="fas fa-save"></i> บันทึกรายการ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-xs uppercase">
+                                    <th class="p-4 font-medium">รหัสสินค้า</th>
+                                    <th class="p-4 font-medium">ชื่อสินค้า</th>
+                                    <th class="p-4 font-medium">คงเหลือ</th>
+                                    <th class="p-4 font-medium">ราคา/ชิ้น</th>
+                                    <th class="p-4 font-medium text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stockTableBody" class="text-sm divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </section>
 
-            document.getElementById(`page-${tabId}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`tab-${tabId}`);
-            activeBtn.className = "px-4 py-2 rounded-md text-sm font-medium transition-colors bg-white text-indigo-700 shadow";
+                <!-- 2.3 ทำรายการเบิก (จุดที่แก้ไขปุ่มให้เด่นชัดขึ้น) -->
+                <section id="withdraw-view" class="view-section fade-in hidden">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-6">ทำรายการเบิกสินค้า</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        <!-- ซ้าย: ฟอร์มเบิกสินค้า -->
+                        <div class="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
+                            <h3 class="text-md font-semibold mb-4 text-gray-800 border-b pb-3"><i class="fas fa-hand-holding-box text-indigo-500 mr-2"></i>รายละเอียดการเบิก</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">เลือกสินค้า *</label>
+                                    <select id="withdrawSelect" class="w-full p-3 border rounded-xl outline-none bg-white text-sm"></select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">จำนวนที่ต้องการเบิก *</label>
+                                    <input type="number" id="withdrawQty" class="w-full p-3 border rounded-xl outline-none text-sm" min="1" placeholder="ระบุจำนวน...">
+                                </div>
+                                <div>
+                                    <label class="block text-sm text-gray-600 mb-1">ผู้เบิก / หมายเหตุ</label>
+                                    <input type="text" id="withdrawNote" class="w-full p-3 border rounded-xl outline-none text-sm" placeholder="เช่น ช่างเอ เบิกไปใช้งานซ่อมบำรุง">
+                                </div>
+                                <button id="withdrawBtn" class="w-full bg-orange-500 text-white px-6 py-3 rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 font-medium shadow-sm">
+                                    <i class="fas fa-check-circle"></i> ยืนยันการเบิก
+                                </button>
+                            </div>
+                        </div>
 
-            if (tabId === 'dashboard') renderDashboard();
-            if (tabId === 'inventory') renderInventory();
-            if (tabId === 'requisition') {
-                renderRequisitions();
-                populateProductSelect();
-            }
-        }
+                        <!-- ขวา: ประวัติการเบิกล่าสุด + ปุ่มแก้ไขและปริ้น PDF -->
+                        <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                            <div class="flex justify-between items-center mb-4 border-b pb-4">
+                                <h3 class="text-md font-semibold text-gray-800"><i class="fas fa-history text-indigo-500 mr-2"></i>ประวัติการเบิกล่าสุด</h3>
+                                <span class="text-xs text-gray-400">อัปเดตแบบเรียลไทม์</span>
+                            </div>
+                            
+                            <!-- ส่วนแสดงรายการ (มีปุ่ม แก้ไข ข้าง ปุ่มปริ้น PDF) -->
+                            <div class="overflow-y-auto max-h-[500px] pr-1 space-y-3 flex-1" id="trackingList"></div>
+                        </div>
 
-        // --- PAGE 1: DASHBOARD ---
-        function renderDashboard() {
-            document.getElementById('current-date-display').innerText = new Date().toLocaleDateString('th-TH', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            });
+                    </div>
+                </section>
 
-            // คำนวณสถิติต่างๆ
-            const totalItems = products.length;
-            const totalValue = products.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            const lowStockCount = products.filter(item => item.qty < 10).length;
-            const totalReq = requisitions.length;
+                <!-- Modal: สำหรับแก้ไขประวัติการเบิก -->
+                <div id="editWithdrawModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative border border-gray-100">
+                        <button onclick="window.closeEditWithdrawModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+                        <div class="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mb-3 text-lg"><i class="fas fa-edit"></i></div>
+                        <h3 class="text-xl font-bold mb-1 text-gray-800">แก้ไขประวัติการเบิก</h3>
+                        <p class="text-xs text-gray-500 mb-4" id="editWithdrawTitle">รายการเบิก: ...</p>
+                        
+                        <input type="hidden" id="editWithId">
+                        <input type="hidden" id="editWithCode">
+                        <input type="hidden" id="editWithOldQty">
+                        <input type="hidden" id="editWithProductName">
 
-            document.getElementById('dash-total-items').innerText = totalItems.toLocaleString();
-            document.getElementById('dash-total-value').innerText = '฿' + totalValue.toLocaleString();
-            document.getElementById('dash-low-stock').innerText = lowStockCount.toLocaleString();
-            document.getElementById('dash-total-req').innerText = totalReq.toLocaleString();
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">จำนวนที่เบิก * <span class="text-orange-600">(คำนวณตัด/เพิ่มสต็อกให้อัตโนมัติ)</span></label>
+                                <input type="number" id="editWithQty" class="w-full p-2.5 border rounded-xl outline-none font-semibold text-gray-800 text-sm" min="1">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">ผู้เบิก / หมายเหตุ</label>
+                                <input type="text" id="editWithNote" class="w-full p-2.5 border rounded-xl outline-none text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">วันที่ทำรายการ</label>
+                                <input type="text" id="editWithDate" class="w-full p-2.5 border rounded-xl outline-none text-xs bg-gray-50">
+                            </div>
+                        </div>
 
-            // เรนเดอร์รายการเบิกล่าสุด 5 รายการ
-            const dashTable = document.getElementById('dash-req-table');
-            dashTable.innerHTML = '';
-            const recentReqs = [...requisitions].reverse().slice(0, 5);
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button onclick="window.closeEditWithdrawModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium">ยกเลิก</button>
+                            <button id="saveEditWithdrawBtn" class="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm hover:bg-orange-600"><i class="fas fa-save"></i> บันทึกการแก้ไข</button>
+                        </div>
+                    </div>
+                </div>
 
-            if (recentReqs.length === 0) {
-                dashTable.innerHTML = `<tr><td colSpan="5" class="text-center py-6 text-gray-400">ยังไม่มีประวัติการเบิกสินค้า</td></tr>`;
-                return;
-            }
+                <!-- Modal: แก้ไขสินค้า -->
+                <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative">
+                        <button onclick="window.closeEditModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+                        <h3 class="text-xl font-bold mb-4 text-gray-800"><i class="fas fa-edit text-indigo-500 mr-2"></i>แก้ไขข้อมูลสินค้า</h3>
+                        <input type="hidden" id="editItemId">
+                        <div class="space-y-3 text-sm">
+                            <div><label class="block text-xs text-gray-600 mb-1">รหัสสินค้า</label><input type="text" id="editItemCode" class="w-full p-2.5 border rounded-xl"></div>
+                            <div><label class="block text-xs text-gray-600 mb-1">ชื่อสินค้า *</label><input type="text" id="editItemName" class="w-full p-2.5 border rounded-xl"></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="block text-xs text-gray-600 mb-1">จำนวนคงเหลือ</label><input type="number" id="editItemQty" class="w-full p-2.5 border rounded-xl"></div>
+                                <div><label class="block text-xs text-gray-600 mb-1">ราคา/ชิ้น</label><input type="number" id="editItemPrice" class="w-full p-2.5 border rounded-xl"></div>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button onclick="window.closeEditModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium">ยกเลิก</button>
+                            <button id="saveEditBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">บันทึก</button>
+                        </div>
+                    </div>
+                </div>
 
-            recentReqs.forEach(req => {
-                dashTable.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 text-gray-500">${req.date}</td>
-                        <td class="p-4 font-medium text-indigo-600">${req.reqId}</td>
-                        <td class="p-4">${req.name}</td>
-                        <td class="p-4">${req.productName}</td>
-                        <td class="p-4 text-center font-semibold">${req.qty}</td>
-                    </tr>
-                `;
-            });
-        }
+                <!-- Modal: เพิ่มสต็อก -->
+                <div id="restockModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
+                    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative">
+                        <button onclick="window.closeRestockModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+                        <h3 class="text-xl font-bold mb-1 text-gray-800">เพิ่มสต็อกสินค้า</h3>
+                        <p class="text-xs text-gray-500 mb-4" id="restockItemTitle">...</p>
+                        <input type="hidden" id="restockItemId"><input type="hidden" id="restockItemCode"><input type="hidden" id="restockItemName">
+                        <div class="space-y-3">
+                            <div><label class="block text-xs text-gray-700 mb-1">จำนวนที่ต้องการเพิ่ม *</label><input type="number" id="restockQtyInput" class="w-full p-2.5 border rounded-xl text-green-600 font-bold" min="1"></div>
+                            <div><label class="block text-xs text-gray-700 mb-1">หมายเหตุ / เลขบิล</label><input type="text" id="restockNoteInput" class="w-full p-2.5 border rounded-xl text-sm"></div>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button onclick="window.closeRestockModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium">ยกเลิก</button>
+                            <button id="saveRestockBtn" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">ยืนยันเพิ่มสต็อก</button>
+                        </div>
+                    </div>
+                </div>
 
-        // --- PAGE 2: INVENTORY ---
-        function renderInventory() {
-            const search = document.getElementById('search-product').value.toLowerCase();
-            const category = document.getElementById('filter-category').value;
-            const table = document.getElementById('inventory-table');
-            table.innerHTML = '';
+            </div>
+        </main>
+    </div>
 
-            const filteredProducts = products.filter(p => {
-                const matchSearch = p.name.toLowerCase().includes(search) || p.id.toLowerCase().includes(search);
-                const matchCat = category === 'all' || p.category === category;
-                return matchSearch && matchCat;
-            });
-
-            if (filteredProducts.length === 0) {
-                table.innerHTML = `<tr><td colSpan="7" class="text-center py-8 text-gray-400">ไม่พบข้อมูลสินค้า</td></tr>`;
-                return;
-            }
-
-            filteredProducts.forEach(p => {
-                const isLowStock = p.qty < 10;
-                const statusBadge = isLowStock 
-                    ? `<span class="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>ใกล้หมด</span>`
-                    : `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-medium"><i class="fa-solid fa-check mr-1"></i>ปกติ</span>`;
-
-                table.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 font-medium text-gray-700">${p.id}</td>
-                        <td class="p-4 text-gray-900 font-medium">${p.name}</td>
-                        <td class="p-4 text-gray-500"><span class="bg-gray-100 px-2 py-1 rounded text-xs">${p.category}</span></td>
-                        <td class="p-4 text-right">฿${p.price.toLocaleString()}</td>
-                        <td class="p-4 text-center font-semibold ${isLowStock ? 'text-amber-600' : 'text-gray-700'}">${p.qty}</td>
-                        <td class="p-4 text-center">${statusBadge}</td>
-                        <td class="p-4 text-center space-x-2 no-print">
-                            <button onclick="editProduct('${p.id}')" class="text-blue-500 hover:text-blue-700 p-1 title='แก้ไข'"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteProduct('${p.id}')" class="text-red-500 hover:text-red-700 p-1 title='ลบ'"><i class="fa-solid fa-trash-can"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function openProductModal(isEdit = false) {
-            document.getElementById('modal-title').innerText = isEdit ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่';
-            document.getElementById('product-modal').classList.remove('hidden');
-            if (!isEdit) {
-                document.getElementById('product-form').reset();
-                document.getElementById('prod-original-id').value = '';
-            }
-        }
-
-        function closeProductModal() {
-            document.getElementById('product-modal').classList.add('hidden');
-        }
-
-        function saveProduct(e) {
-            e.preventDefault();
-            const originalId = document.getElementById('prod-original-id').value;
-            const newProduct = {
-                id: document.getElementById('prod-id').value.trim(),
-                name: document.getElementById('prod-name').value.trim(),
-                category: document.getElementById('prod-category').value,
-                price: parseFloat(document.getElementById('prod-price').value) || 0,
-                qty: parseInt(document.getElementById('prod-qty').value) || 0
-            };
-
-            if (originalId) {
-                // แก้ไขสินค้าเดิม
-                const index = products.findIndex(p => p.id === originalId);
-                if (index !== -1) products[index] = newProduct;
-            } else {
-                // เพิ่มสินค้าใหม่ (เช็ครหัสซ้ำ)
-                if (products.some(p => p.id === newProduct.id)) {
-                    alert('รหัสสินค้านี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น');
-                    return;
-                }
-                products.push(newProduct);
-            }
-
-            saveToLocalStorage();
-            closeProductModal();
-            renderInventory();
-        }
-
-        function editProduct(id) {
-            const p = products.find(item => item.id === id);
-            if (!p) return;
-            document.getElementById('prod-original-id').value = p.id;
-            document.getElementById('prod-id').value = p.id;
-            document.getElementById('prod-name').value = p.name;
-            document.getElementById('prod-category').value = p.category;
-            document.getElementById('prod-price').value = p.price;
-            document.getElementById('prod-qty').value = p.qty;
-            openProductModal(true);
-        }
-
-        function deleteProduct(id) {
-            if (confirm(`คุณต้องการลบสินค้ารหัส ${id} ใช่หรือไม่?`)) {
-                products = products.filter(p => p.id !== id);
-                saveToLocalStorage();
-                renderInventory();
-            }
-        }
-
-        // ฟังก์ชันปริ้นรายงานสต็อกสินค้า (คงไว้ตามต้องการ)
-        function printInventoryReport() {
-            document.getElementById('print-date-display').innerText = 'ข้อมูล ณ วันที่: ' + new Date().toLocaleString('th-TH');
-            window.print();
-        }
-
-        // --- PAGE 3: REQUISITION ---
-        function populateProductSelect() {
-            const select = document.getElementById('req-product');
-            select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
-            products.forEach(p => {
-                if (p.qty > 0) {
-                    select.innerHTML += `<option value="${p.id}">${p.id} - ${p.name} (เหลือ: ${p.qty})</option>`;
-                }
-            });
-            updateMaxReqQty();
-        }
-
-        function updateMaxReqQty() {
-            const selectedId = document.getElementById('req-product').value;
-            const hint = document.getElementById('req-stock-hint');
-            const qtyInput = document.getElementById('req-qty');
-
-            if (!selectedId) {
-                hint.innerText = 'คงเหลือในสต็อก: -';
-                qtyInput.removeAttribute('max');
-                return;
-            }
-
-            const p = products.find(item => item.id === selectedId);
-            if (p) {
-                hint.innerText = `คงเหลือในสต็อก: ${p.qty} ชิ้น`;
-                qtyInput.setAttribute('max', p.qty);
-            }
-        }
-
-        function handleRequisition(e) {
-            e.preventDefault();
-            const prodId = document.getElementById('req-product').value;
-            const reqQty = parseInt(document.getElementById('req-qty').value);
-            const reqName = document.getElementById('req-name').value.trim();
-            const reqReason = document.getElementById('req-reason').value.trim() || '-';
-
-            const pIndex = products.findIndex(p => p.id === prodId);
-            if (pIndex === -1) return;
-
-            if (reqQty > products[pIndex].qty) {
-                alert('จำนวนสินค้าไม่เพียงพอสำหรับการเบิก!');
-                return;
-            }
-
-            // ตัดสต็อก
-            products[pIndex].qty -= reqQty;
-
-            // สร้างบันทึกประวัติ
-            const newReq = {
-                reqId: 'REQ-' + Math.floor(100000 + Math.random() * 900000),
-                date: new Date().toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                productId: prodId,
-                productName: products[pIndex].name,
-                qty: reqQty,
-                name: reqName,
-                reason: reqReason
-            };
-
-            requisitions.push(newReq);
-            saveToLocalStorage();
-            
-            // รีเซ็ตฟอร์มและอัปเดตหน้าจอ
-            document.getElementById('requisition-form').reset();
-            populateProductSelect();
-            renderRequisitions();
-            alert(`ทำรายการเบิกสำเร็จ! รหัสใบเบิก: ${newReq.reqId}`);
-        }
-
-        function renderRequisitions() {
-            const table = document.getElementById('requisition-table');
-            table.innerHTML = '';
-
-            if (requisitions.length === 0) {
-                table.innerHTML = `<tr><td colSpan="6" class="text-center py-8 text-gray-400">ยังไม่มีประวัติการเบิกสินค้า</td></tr>`;
-                return;
-            }
-
-            // เรียงลำดับจากล่าสุดไปเก่าสุด
-            const reversedReqs = [...requisitions].reverse();
-            reversedReqs.forEach(req => {
-                table.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 font-semibold text-indigo-600">${req.reqId}</td>
-                        <td class="p-4 text-gray-500 text-xs">${req.date}</td>
-                        <td class="p-4 font-medium text-gray-800">${req.name}</td>
-                        <td class="p-4">${req.productName}</td>
-                        <td class="p-4 text-center font-bold text-gray-700">${req.qty}</td>
-                        <td class="p-4 text-center">
-                            <!-- ปุ่มปริ้นใบเบิก (คงไว้ตามต้องการ) -->
-                            <button onclick="printRequisitionSlip('${req.reqId}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1 rounded text-xs transition font-medium">
-                                <i class="fa-solid fa-print mr-1"></i> ปริ้นใบเบิก
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        // ฟังก์ชันปริ้นใบรายการเบิกสินค้า (คงไว้ตามต้องการ)
-        function printRequisitionSlip(reqId) {
-            const req = requisitions.find(r => r.reqId === reqId);
-            if (!req) return;
-
-            // เติมข้อมูลลงในแบบฟอร์มปริ้น
-            document.getElementById('slip-id').innerText = req.reqId;
-            document.getElementById('slip-date').innerText = req.date;
-            document.getElementById('slip-name').innerText = req.name;
-            document.getElementById('slip-product').innerText = `${req.productId} - ${req.productName}`;
-            document.getElementById('slip-qty').innerText = `${req.qty} ชิ้น`;
-            document.getElementById('slip-reason').innerText = req.reason;
-
-            // สั่งพิมพ์
-            window.print();
-        }
-
-        // --- COMMON FUNCTIONS ---
-        function saveToLocalStorage() {
-            localStorage.setItem('my_inventory_products', JSON.stringify(products));
-            localStorage.setItem('my_inventory_reqs', JSON.stringify(requisitions));
-        }
-
-        // รันหน้าแรกเมื่อเปิดเว็บ
-        switchTab('dashboard');
-    </script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
