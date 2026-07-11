@@ -227,7 +227,6 @@
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">ทำรายการเบิกสินค้า</h1>
                     
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        <!-- กล่องด้านซ้าย ( 5 ส่วน ) -->
                         <div class="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
                             <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-3"><i class="fas fa-hand-holding-box text-indigo-500 mr-2"></i>รายละเอียดการเบิก</h3>
                             <div class="space-y-4">
@@ -249,12 +248,10 @@
                             </div>
                         </div>
 
-                        <!-- กล่องด้านขวา ( 7 ส่วน ) อัปเกรดตัวกรองวันที่ -->
                         <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
                             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3 border-b pb-4">
                                 <h3 class="text-lg font-semibold text-gray-800 whitespace-nowrap"><i class="fas fa-history text-indigo-500 mr-2"></i>ประวัติการเบิกล่าสุด</h3>
                                 
-                                <!-- เครื่องมือกรองวันที่สำหรับประวัติการเบิกโดยเฉพาะ -->
                                 <div class="flex flex-wrap items-center gap-2 w-full xl:w-auto bg-gray-50 p-2 rounded-xl border border-gray-200/60">
                                     <div class="flex items-center gap-1.5 flex-1 sm:flex-none">
                                         <span class="text-xs text-gray-500 font-medium">เริ่ม:</span>
@@ -275,7 +272,6 @@
                                 </div>
                             </div>
 
-                            <!-- ส่วนแสดงรายการประวัติการเบิก -->
                             <div class="overflow-y-auto max-h-[480px] pr-2 space-y-3 flex-1" id="trackingList"></div>
                         </div>
                     </div>
@@ -362,23 +358,79 @@
                     </div>
                 </div>
 
-                <!-- PDF Template (ซ่อนเสมอ) -->
-                <div id="pdfTemplate" class="hidden bg-white p-10 text-gray-800 w-[800px] mx-auto absolute top-[-9999px] left-[-9999px]">
-                    <div class="text-center mb-8 border-b-2 border-gray-800 pb-4">
-                        <h1 class="text-3xl font-bold">ใบเบิกสินค้า (Withdrawal Slip)</h1>
-                        <p class="text-gray-500 mt-2">บริษัท สต็อกโปร จำกัด</p>
-                    </div>
-                    <div class="flex justify-between mb-8">
-                        <div><p><strong>รหัสเอกสาร:</strong> <span id="pdfDocId"></span></p><p><strong>ผู้เบิก:</strong> <span id="pdfUser"></span></p></div>
-                        <div class="text-right"><p><strong>วันที่:</strong> <span id="pdfDate"></span></p><p><strong>สถานะ:</strong> อนุมัติแล้ว</p></div>
-                    </div>
-                    <table class="w-full text-left border-collapse mb-10">
-                        <thead><tr class="bg-gray-100"><th class="border p-3">รหัสสินค้า</th><th class="border p-3">รายการสินค้า</th><th class="border p-3 text-center">จำนวนที่เบิก</th></tr></thead>
-                        <tbody><tr><td class="border p-3" id="pdfItemCode"></td><td class="border p-3" id="pdfItemName"></td><td class="border p-3 text-center" id="pdfItemQty"></td></tr></tbody>
-                    </table>
-                    <div class="flex justify-between mt-20 pt-8 border-t border-gray-300">
-                        <div class="text-center"><p class="mb-8">________________________</p><p>ผู้ขอเบิก</p></div>
-                        <div class="text-center"><p class="mb-8">________________________</p><p>ผู้อนุมัติ / ผู้จ่ายของ</p></div>
+                <!-- ================= Modal 3: ตรวจสอบและพิมพ์ใบเบิก (Print Preview Modal) ================= -->
+                <div id="printPreviewModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4 overflow-y-auto">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                            <div class="flex items-center gap-2 text-indigo-600 font-bold text-lg">
+                                <i class="fas fa-file-invoice text-xl"></i>
+                                <span>ตรวจสอบตัวอย่างใบเบิกสินค้า (Print Preview)</span>
+                            </div>
+                            <button onclick="window.closePrintModal()" class="text-gray-400 hover:text-red-500 text-2xl transition">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <!-- พื้นที่กระดาษใบเบิก (จะถูกจับภาพเป็น PDF จากตรงนี้โดยตรง) -->
+                        <div class="p-6 overflow-y-auto flex-1 bg-gray-100 flex justify-center">
+                            <div id="printableArea" class="bg-white p-8 md:p-12 shadow-md w-full max-w-[650px] text-gray-800 border border-gray-200 rounded-sm" style="background-color: #ffffff; color: #1f2937;">
+                                <div class="text-center mb-8 border-b-2 border-gray-800 pb-4">
+                                    <h1 class="text-2xl md:text-3xl font-bold tracking-wide">ใบเบิกสินค้า (Withdrawal Slip)</h1>
+                                    <p class="text-gray-500 mt-1 text-sm">ระบบจัดการสต็อกสินค้า StockPro</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 mb-8 text-sm">
+                                    <div>
+                                        <p class="mb-1"><span class="font-semibold text-gray-600">รหัสเอกสาร:</span> <span id="pdfDocId" class="font-bold text-indigo-600"></span></p>
+                                        <p><span class="font-semibold text-gray-600">ผู้เบิก / หมายเหตุ:</span> <span id="pdfUser" class="font-medium"></span></p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="mb-1"><span class="font-semibold text-gray-600">วันที่:</span> <span id="pdfDate" class="font-medium"></span></p>
+                                        <p><span class="font-semibold text-gray-600">สถานะ:</span> <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold inline-block">อนุมัติแล้ว</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="border border-gray-200 rounded-lg overflow-hidden mb-10">
+                                    <table class="w-full text-left border-collapse text-sm">
+                                        <thead>
+                                            <tr class="bg-gray-100 text-gray-700">
+                                                <th class="border-b border-gray-200 p-3 font-semibold">รหัสสินค้า</th>
+                                                <th class="border-b border-gray-200 p-3 font-semibold">รายการสินค้า</th>
+                                                <th class="border-b border-gray-200 p-3 text-center font-semibold">จำนวนที่เบิก</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="p-4 font-medium text-gray-900 border-b border-gray-100" id="pdfItemCode"></td>
+                                                <td class="p-4 text-gray-800 border-b border-gray-100" id="pdfItemName"></td>
+                                                <td class="p-4 text-center font-bold text-orange-600 border-b border-gray-100 text-base" id="pdfItemQty"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-8 mt-16 pt-8 border-t border-gray-200 text-sm text-center">
+                                    <div>
+                                        <p class="mb-12 text-gray-400">_________________________________</p>
+                                        <p class="font-medium text-gray-700">ผู้ขอเบิกสินค้า</p>
+                                        <p class="text-xs text-gray-400 mt-1">(ลงลายมือชื่อ)</p>
+                                    </div>
+                                    <div>
+                                        <p class="mb-12 text-gray-400">_________________________________</p>
+                                        <p class="font-medium text-gray-700">ผู้อนุมัติ / ผู้จ่ายสินค้า</p>
+                                        <p class="text-xs text-gray-400 mt-1">(ลงลายมือชื่อ)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-4 bg-white border-t border-gray-100 flex justify-end gap-3">
+                            <button onclick="window.closePrintModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-medium">
+                                ยกเลิก
+                            </button>
+                            <button id="confirmPrintBtn" onclick="window.confirmDownloadPDF()" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition font-medium flex items-center gap-2 shadow-md">
+                                <i class="fas fa-print"></i> ยืนยันพิมพ์ / ดาวน์โหลด PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
 
