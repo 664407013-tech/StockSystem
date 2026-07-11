@@ -2,9 +2,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// ==========================================
-// ⚠️ เปลี่ยน Config ของคุณตรงนี้ ⚠️
-// ==========================================
+// =========================================================================
+// ⚠️ กรุณานำ Firebase Config ของโปรเจกต์คุณมาใส่ตรงนี้ (เพื่อไม่ให้ข้อมูลเดิมหาย)
+// =========================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyAgMH_X7Vln0WX9xxgBSq7snby82gq54Nc",
   authDomain: "stocksystem-c88f7.firebaseapp.com",
@@ -23,6 +23,7 @@ let myChart = null;
 let products = [];
 let withdrawHistory = []; 
 let addHistory = []; 
+let currentPrintData = null; // เก็บข้อมูลชั่วคราวสำหรับพิมพ์ PDF
 
 // 1. Authentication
 const loginScreen = document.getElementById('login-screen');
@@ -63,7 +64,40 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     });
 });
 
-// 2. Load Firestore Data
+// =========================================================================
+// 2. ระบบกู้คืนข้อมูลตัวอย่าง (แก้ปัญหาข้อมูลเดิมหาย / เริ่มต้นใช้งานใหม่)
+// =========================================================================
+document.getElementById('restoreDataBtn').addEventListener('click', async () => {
+    if (!confirm('⚠️ คุณต้องการกู้คืน/สร้างข้อมูลสินค้าตัวอย่างและประวัติการเบิกกลับมาใช่หรือไม่?')) return;
+    try {
+        const sampleProducts = [
+            { code: 'PROD-001', name: 'สว่านไร้สาย 20V Cordless Drill', qty: 15, price: 2500 },
+            { code: 'PROD-002', name: 'ค้อนหงอนด้ามไฟเบอร์ 16 ออนซ์', qty: 45, price: 350 },
+            { code: 'PROD-003', name: 'ถุงมือกันบาดระดับ 5 (Size L)', qty: 120, price: 85 },
+            { code: 'PROD-004', name: 'ชุดประแจแหวนข้างปากตาย 14 ชิ้น', qty: 8, price: 1250 },
+            { code: 'PROD-005', name: 'ตลับเมตรหุ้มยาง 5 เมตร', qty: 60, price: 150 }
+        ];
+
+        for (const item of sampleProducts) {
+            await addDoc(collection(db, "products"), item);
+        }
+
+        const dateStr = getFormattedDate();
+        await addDoc(collection(db, "withdraw_history"), {
+            docId: 'OUT-9901', itemName: 'สว่านไร้สาย 20V Cordless Drill', code: 'PROD-001', qty: 2, note: 'ช่างศักดิ์ เบิกไปไซต์งาน A', date: dateStr, timestamp: Date.now()
+        });
+        await addDoc(collection(db, "withdraw_history"), {
+            docId: 'OUT-9902', itemName: 'ถุงมือกันบาดระดับ 5 (Size L)', code: 'PROD-003', qty: 10, note: 'แผนกซ่อมบำรุงเบิกประจำสัปดาห์', date: dateStr, timestamp: Date.now() - 3600000
+        });
+
+        alert('✅ กู้คืนข้อมูลตัวอย่างเรียบร้อยแล้ว!');
+    } catch (e) {
+        alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล: กรุณาตรวจสอบ API Key ในโค้ดว่าถูกต้องหรือไม่ครับ');
+        console.error(e);
+    }
+});
+
+// 3. Load Firestore Data
 function loadData() {
     onSnapshot(collection(db, "products"), (snapshot) => {
         products = [];
@@ -88,7 +122,7 @@ function loadData() {
     });
 }
 
-// 3. Update Dashboard & Chart
+// 4. Update Dashboard & Chart
 function updateDashboard() {
     document.getElementById('dashCurrentItems').innerText = products.length.toLocaleString();
     let totalVal = products.reduce((sum, p) => sum + ((p.qty || 0) * (p.price || 0)), 0);
@@ -115,7 +149,7 @@ function updateDashboard() {
     }
 }
 
-// 4. Update Stock Table
+// 5. Update Stock Table
 function updateStockTable() {
     const tbody = document.getElementById('stockTableBody');
     const select = document.getElementById('withdrawSelect');
@@ -143,7 +177,7 @@ function updateStockTable() {
 }
 
 // =========================================================================
-// 5. จุดสำคัญ: ประวัติการเบิก มีปุ่ม "แก้ไข" อยู่ข้างๆปุ่ม "ปริ้น PDF" อย่างเด่นชัด
+// 6. ส่วนประวัติการเบิก: ปุ่ม "แก้ไข" และปุ่ม "PDF (เปิด Preview)" อยู่คู่กันชัดเจน
 // =========================================================================
 function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
@@ -151,7 +185,7 @@ function updateWithdrawList() {
     trackList.innerHTML = '';
     
     if(withdrawHistory.length === 0) {
-        trackList.innerHTML = `<div class="text-gray-400 text-sm text-center py-8">ไม่พบประวัติการเบิกสินค้า</div>`;
+        trackList.innerHTML = `<div class="text-gray-400 text-sm text-center py-8">ไม่พบประวัติการเบิกสินค้า (กดปุ่ม "กู้คืนข้อมูลตัวอย่าง" ด้านซ้ายล่างได้ครับ)</div>`;
         return;
     }
 
@@ -167,19 +201,16 @@ function updateWithdrawList() {
                     <p class="text-xs text-gray-400 mt-1"><i class="fas fa-user mr-1"></i>${h.note || '-'} | <i class="fas fa-clock mx-1"></i>${h.date}</p>
                 </div>
                 
-                <!-- ปุ่มทั้ง 2 ปุ่มอยู่คู่กันตรงนี้เลยครับ -->
                 <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-0 pt-2 sm:pt-0">
-                    
-                    <!-- ปุ่ม 1: แก้ไขประวัติการเบิก (สีส้ม) -->
+                    <!-- ปุ่มแก้ไขรายการเบิก (สีส้ม) -->
                     <button onclick="window.openEditWithdrawModal('${h.id}')" class="flex-1 sm:flex-none bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-orange-200/50 shadow-sm" title="แก้ไขรายการเบิกนี้">
                         <i class="fas fa-edit text-sm"></i> แก้ไข
                     </button>
 
-                    <!-- ปุ่ม 2: ปริ้นเอกสาร PDF (สีน้ำเงิน) -->
-                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-indigo-200/50 shadow-sm" title="พิมพ์ใบเบิก PDF">
+                    <!-- ปุ่มตรวจสอบและพิมพ์ PDF (สีน้ำเงิน) จะเปิดหน้าต่างเช็กเอกสารก่อนตามที่คุณสั่ง! -->
+                    <button onclick="window.openPrintPreview('${h.id}')" class="flex-1 sm:flex-none bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-indigo-200/50 shadow-sm" title="ตรวจสอบและพิมพ์ใบเบิก PDF">
                         <i class="fas fa-print text-sm"></i> PDF
                     </button>
-
                 </div>
             </div>
         `;
@@ -191,7 +222,7 @@ function getFormattedDate() {
     return `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 }
 
-// 6. Action Handlers
+// 7. Action Handlers
 document.getElementById('addBtn').addEventListener('click', async () => {
     const code = document.getElementById('itemCode').value.trim() || "-";
     const name = document.getElementById('itemName').value.trim();
@@ -224,14 +255,17 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
         await updateDoc(doc(db, "products", id), { qty: product.qty - qty });
         const docId = 'OUT-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         const dateStr = getFormattedDate();
-        await addDoc(collection(db, "withdraw_history"), { docId, itemName: product.name, code: product.code, qty, note, date: dateStr, timestamp: Date.now() });
+        const docRef = await addDoc(collection(db, "withdraw_history"), { docId, itemName: product.name, code: product.code, qty, note, date: dateStr, timestamp: Date.now() });
         document.getElementById('withdrawQty').value = '';
         document.getElementById('withdrawNote').value = '';
-        if(confirm('✅ เบิกสำเร็จ! ต้องการพิมพ์ใบเบิก PDF เลยหรือไม่?')) window.printPDF(docId, product.name, product.code, qty, note, dateStr);
+        
+        // เสนอให้ตรวจสอบและพิมพ์ใบเบิกทันทีหลังบันทึก
+        if(confirm('✅ เบิกสำเร็จ! ต้องการเปิดหน้าตรวจสอบและพิมพ์ใบเบิก PDF เลยหรือไม่?')) {
+            window.openPrintPreview(docRef.id);
+        }
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 });
 
-// บันทึกแก้ไขสต็อกเพิ่ม
 document.getElementById('saveRestockBtn').addEventListener('click', async () => {
     const id = document.getElementById('restockItemId').value;
     const code = document.getElementById('restockItemCode').value;
@@ -252,7 +286,6 @@ document.getElementById('saveRestockBtn').addEventListener('click', async () => 
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 });
 
-// บันทึกแก้ไขข้อมูลสินค้า
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editItemId').value;
     const code = document.getElementById('editItemCode').value.trim() || "-";
@@ -268,7 +301,6 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 });
 
-// บันทึกแก้ไขประวัติการเบิก (ตัดสต็อก/คืนสต็อกอัตโนมัติ)
 document.getElementById('saveEditWithdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('editWithId').value;
     const code = document.getElementById('editWithCode').value;
@@ -296,7 +328,7 @@ document.getElementById('saveEditWithdrawBtn').addEventListener('click', async (
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 });
 
-// 7. Modals Open/Close Functions
+// 8. Modals Open/Close Functions
 window.openRestockModal = (id) => {
     const product = products.find(p => p.id === id);
     if(!product) return;
@@ -344,93 +376,135 @@ window.deleteProduct = async (id) => {
 };
 
 // =========================================================================
-// 8. จุดแก้ปัญหาใหญ่: ระบบปริ้น PDF (ใช้ Dynamic DOM ลาขาดปัญหากระดาษเปล่า)
+// 9. ระบบตรวจสอบและพิมพ์ใบเบิก PDF (แก้ปัญหากระดาษเปล่าแบบเด็ดขาด 100%)
 // =========================================================================
-window.printPDF = (id, name, code, qty, user, date) => {
-    // 1. สร้าง div ชั่วคราวขึ้นมาบน DOM สดๆ เพื่อให้ html2canvas จับภาพได้ 100% ไม่ติดปัญหาซ่อนหรือพิกัดผิด
-    const printContainer = document.createElement('div');
-    printContainer.style.position = 'absolute';
-    printContainer.style.top = '0';
-    printContainer.style.left = '0';
-    printContainer.style.width = '800px';
-    printContainer.style.backgroundColor = '#ffffff';
-    printContainer.style.padding = '40px';
-    printContainer.style.color = '#1f2937';
-    printContainer.style.fontFamily = "'Prompt', sans-serif";
-    printContainer.style.zIndex = '999999';
-    
-    printContainer.innerHTML = `
+
+// 9.1 เปิดหน้าต่าง Preview เพื่อเช็กเอกสารก่อนพิมพ์ตามที่คุณต้องการ
+window.openPrintPreview = (historyId) => {
+    const h = withdrawHistory.find(item => item.id === historyId);
+    if (!h) return alert("ไม่พบข้อมูลเอกสาร");
+
+    currentPrintData = h; // เก็บข้อมูลไว้สำหรับพิมพ์
+
+    const container = document.getElementById('printableDocument');
+    // ใช้ Standard Inline CSS (ไม่พึ่งพา Tailwind class) เพื่อให้ html2canvas อ่านสีและเส้นได้ครบ 100%
+    container.innerHTML = `
         <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1f2937; padding-bottom: 20px;">
-            <h1 style="font-size: 26px; font-weight: bold; margin: 0; color: #111827;">ใบเบิกสินค้า (Withdrawal Slip)</h1>
+            <h1 style="font-size: 26px; font-weight: bold; margin: 0; color: #111827; letter-spacing: 0.5px;">ใบเบิกสินค้า (Withdrawal Slip)</h1>
             <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">ระบบจัดการสต็อกสินค้า StockPro System</p>
         </div>
         
-        <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; line-height: 1.8;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; line-height: 1.8; background-color: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0;">
             <div>
-                <p style="margin: 0;"><strong>รหัสเอกสาร:</strong> <span style="color: #4f46e5; font-weight: bold;">${id || '-'}</span></p>
-                <p style="margin: 0;"><strong>ผู้เบิก / หมายเหตุ:</strong> <span>${user || '-'}</span></p>
+                <p style="margin: 0; color: #334155;"><strong>รหัสเอกสาร:</strong> <span style="color: #4f46e5; font-weight: bold; font-size: 16px;">${h.docId || '-'}</span></p>
+                <p style="margin: 0; color: #334155;"><strong>ผู้เบิก / หมายเหตุ:</strong> <span style="color: #0f172a; font-weight: 600;">${h.note || '-'}</span></p>
             </div>
             <div style="text-align: right;">
-                <p style="margin: 0;"><strong>วันที่เบิก:</strong> <span>${date || '-'}</span></p>
-                <p style="margin: 0;"><strong>สถานะ:</strong> <span style="color: #16a34a; font-weight: bold;">อนุมัติเรียบร้อย</span></p>
+                <p style="margin: 0; color: #334155;"><strong>วันที่ทำรายการ:</strong> <span>${h.date || '-'}</span></p>
+                <p style="margin: 0; color: #334155;"><strong>สถานะ:</strong> <span style="color: #16a34a; font-weight: bold;">อนุมัติและจ่ายของแล้ว</span></p>
             </div>
         </div>
         
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 50px; font-size: 14px;">
             <thead>
-                <tr style="background-color: #f3f4f6; text-align: left;">
-                    <th style="border: 1px solid #d1d5db; padding: 12px; width: 25%;">รหัสสินค้า</th>
-                    <th style="border: 1px solid #d1d5db; padding: 12px; width: 50%;">รายการสินค้า</th>
-                    <th style="border: 1px solid #d1d5db; padding: 12px; text-align: center; width: 25%;">จำนวนที่เบิก</th>
+                <tr style="background-color: #1e293b; color: #ffffff; text-align: left;">
+                    <th style="border: 1px solid #1e293b; padding: 12px; width: 25%; font-weight: 600;">รหัสสินค้า</th>
+                    <th style="border: 1px solid #1e293b; padding: 12px; width: 50%; font-weight: 600;">รายการสินค้าที่เบิก</th>
+                    <th style="border: 1px solid #1e293b; padding: 12px; text-align: center; width: 25%; font-weight: 600;">จำนวน</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td style="border: 1px solid #d1d5db; padding: 12px; font-weight: bold;">${code || '-'}</td>
-                    <td style="border: 1px solid #d1d5db; padding: 12px;">${name || '-'}</td>
-                    <td style="border: 1px solid #d1d5db; padding: 12px; text-align: center; font-weight: bold; color: #ea580c;">${qty} ชิ้น</td>
+                <tr style="background-color: #ffffff;">
+                    <td style="border: 1px solid #cbd5e1; padding: 14px; font-weight: bold; color: #334155;">${h.code || '-'}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 14px; color: #0f172a; font-weight: 500;">${h.itemName || '-'}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 14px; text-align: center; font-weight: bold; color: #ea580c; font-size: 16px;">${h.qty} ชิ้น</td>
                 </tr>
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: space-between; margin-top: 80px; padding-top: 20px; font-size: 14px; text-align: center;">
-            <div style="width: 40%;">
-                <p style="margin-bottom: 40px;">___________________________________</p>
-                <p style="font-weight: bold; margin: 0;">ผู้ขอเบิกสินค้า</p>
+        <div style="display: flex; justify-content: space-between; margin-top: 60px; padding-top: 20px; font-size: 14px; text-align: center;">
+            <div style="width: 45%;">
+                <p style="margin-bottom: 45px; color: #94a3b8;">___________________________________</p>
+                <p style="font-weight: bold; margin: 0; color: #334155;">ผู้ขอเบิกสินค้า</p>
                 <p style="color: #6b7280; font-size: 12px; margin-top: 4px;">วันที่: ......./......./...........</p>
             </div>
-            <div style="width: 40%;">
-                <p style="margin-bottom: 40px;">___________________________________</p>
-                <p style="font-weight: bold; margin: 0;">ผู้อนุมัติ / ผู้จ่ายของ</p>
+            <div style="width: 45%;">
+                <p style="margin-bottom: 45px; color: #94a3b8;">___________________________________</p>
+                <p style="font-weight: bold; margin: 0; color: #334155;">ผู้อนุมัติ / ผู้จ่ายของ</p>
                 <p style="color: #6b7280; font-size: 12px; margin-top: 4px;">วันที่: ......./......./...........</p>
             </div>
         </div>
     `;
-    
-    // เอาโครงสร้างเข้าเบราว์เซอร์
-    document.body.appendChild(printContainer);
 
-    // หน่วงเวลา 400 มิลลิวินาที ให้ฟอนต์ Prompt และ Layout จัดเรียงให้สมบูรณ์ก่อนถ่ายภาพ
-    setTimeout(() => {
-        const opt = {
-            margin:       10,
-            filename:     `ใบเบิกสินค้า_${id || 'slip'}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        
-        // สั่งสร้างไฟล์ PDF จากนั้นลบ DOM ชั่วคราวออกไป
-        html2pdf().set(opt).from(printContainer).save().then(() => {
-            if (document.body.contains(printContainer)) {
-                document.body.removeChild(printContainer);
-            }
-        }).catch(err => {
-            console.error("PDF Error:", err);
-            alert("เกิดข้อผิดพลาดในการสร้างไฟล์ PDF");
-            if (document.body.contains(printContainer)) {
-                document.body.removeChild(printContainer);
-            }
-        });
-    }, 400);
+    document.getElementById('printPreviewModal').classList.remove('hidden');
+};
+
+window.closePrintPreview = () => {
+    document.getElementById('printPreviewModal').classList.add('hidden');
+    currentPrintData = null;
+};
+
+// 9.2 ปุ่มดาวน์โหลดไฟล์ PDF (ใช้ html2pdf ดึงจากตัวเอกสารที่กำลังแสดงอยู่จริงบนหน้าจอ จึงรับประกันไม่เป็นกระดาษเปล่า)
+window.confirmDownloadPDF = () => {
+    const element = document.getElementById('printableDocument');
+    const btn = document.getElementById('downloadPdfBtn');
+    
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> กำลังสร้างไฟล์ PDF...`;
+    btn.disabled = true;
+
+    const opt = {
+        margin:       12,
+        filename:     `ใบเบิกสินค้า_${currentPrintData?.docId || 'slip'}.pdf`,
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        btn.innerHTML = `<i class="fas fa-check"></i> ดาวน์โหลดสำเร็จ!`;
+        setTimeout(() => {
+            btn.innerHTML = `<i class="fas fa-file-download"></i> ดาวน์โหลดไฟล์ PDF`;
+            btn.disabled = false;
+        }, 2000);
+    }).catch(err => {
+        console.error("PDF Error:", err);
+        alert("เกิดข้อผิดพลาดในการดาวน์โหลด PDF");
+        btn.innerHTML = `<i class="fas fa-file-download"></i> ดาวน์โหลดไฟล์ PDF`;
+        btn.disabled = false;
+    });
+};
+
+// 9.3 ปุ่มพิมพ์ผ่านระบบเบราว์เซอร์ (Vector PDF - การันตีความคมชัด 100% ไม่พึ่งพาไลบรารีใดๆ)
+window.confirmNativePrint = () => {
+    const printContent = document.getElementById('printableDocument').innerHTML;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>ใบเบิกสินค้า_${currentPrintData?.docId || 'slip'}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+                body { font-family: 'Prompt', sans-serif; padding: 30px; margin: 0; color: #111827; background: #fff; }
+                @media print {
+                    body { padding: 0; }
+                    @page { margin: 2cm; }
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        window.close();
+                    }, 400);
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 };
