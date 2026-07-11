@@ -82,7 +82,6 @@ function getBase64(file) {
 // ==========================================
 function loadData() {
     try {
-        // ดึงสต็อกปัจจุบัน
         unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
             products = [];
             snapshot.forEach((doc) => products.push({ id: doc.id, ...doc.data() }));
@@ -90,7 +89,6 @@ function loadData() {
             updateDashboard();
         });
 
-        // ดึงประวัติการเบิกออก
         unsubscribeHistory = onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
             withdrawHistory = [];
             snapshot.forEach((doc) => withdrawHistory.push({ id: doc.id, ...doc.data() }));
@@ -99,7 +97,6 @@ function loadData() {
             updateDashboard();
         });
 
-        // ดึงประวัติการรับเข้า
         unsubscribeAddHistory = onSnapshot(collection(db, "add_history"), (snapshot) => {
             addHistory = [];
             snapshot.forEach((doc) => addHistory.push({ id: doc.id, ...doc.data() }));
@@ -112,7 +109,7 @@ function loadData() {
 }
 
 // ==========================================
-// 3. จัดการ Dashboard (ระบบวิเคราะห์)
+// 3. จัดการ Dashboard
 // ==========================================
 function updateDashboard() {
     let totalItems = products.length;
@@ -196,7 +193,7 @@ document.getElementById('clearDashBtn').addEventListener('click', () => {
 });
 
 // ==========================================
-// 4. การจัดการตารางและการเบิก (Stock & Withdraw UI)
+// 4. การจัดการตารางและการเบิก (เพิ่มปุ่มแก้ไขประวัติเบิก)
 // ==========================================
 function updateStockTable() {
     const tbody = document.getElementById('stockTableBody');
@@ -227,24 +224,21 @@ function updateStockTable() {
     });
 }
 
-// ⚠️ ฟังก์ชันแสดงและกรองประวัติการเบิกออก (อัปเกรดใหม่) ⚠️
+// ⚠️ อัปเกรด: แสดงประวัติการเบิก พร้อมปุ่ม "แก้ไข" และ "ปริ้น" ⚠️
 function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
     trackList.innerHTML = '';
     
-    // ดึงค่าจากตัวกรองวันที่
     const startDateVal = document.getElementById('withdrawStartDate')?.value;
     const endDateVal = document.getElementById('withdrawEndDate')?.value;
     let filteredHistory = [...withdrawHistory];
 
-    // คำนวณช่วงเวลาสำหรับการกรอง
     if (startDateVal && endDateVal) {
         const start = new Date(startDateVal).setHours(0,0,0,0);
         const end = new Date(endDateVal).setHours(23,59,59,999);
         filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
     } else if (startDateVal) {
-        // ถ้าเลือกแค่จุดเริ่มต้น ให้แสดงเฉพาะของวันนั้นวันเดียว
         const start = new Date(startDateVal).setHours(0,0,0,0);
         const end = new Date(startDateVal).setHours(23,59,59,999);
         filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
@@ -263,19 +257,27 @@ function updateWithdrawList() {
                     <div>
                         <div class="flex items-center gap-2 mb-1">
                             <span class="bg-orange-100 text-orange-700 text-xs px-2.5 py-0.5 rounded-md font-bold">เบิกออก</span>
-                            <span class="text-sm font-semibold text-gray-800">${h.docId}</span>
+                            <span class="text-sm font-semibold text-gray-800">${h.docId || '-'}</span>
                         </div>
                         <p class="text-sm text-gray-700">เบิก: <strong>${h.itemName || '-'}</strong> <span class="text-orange-600 font-bold">(${h.qty} ชิ้น)</span></p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-user-edit mr-1"></i>${h.note || '-'} | <i class="fas fa-clock ml-1 mr-1"></i>${h.date}</p>
                     </div>
-                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="พิมพ์ใบเบิก PDF"><i class="fas fa-print"></i></button>
+                    <div class="flex items-center gap-1.5 whitespace-nowrap">
+                        <!-- ปุ่มแก้ไขประวัติการเบิก -->
+                        <button onclick="window.openEditWithdrawModal('${h.id}')" class="text-orange-500 bg-orange-50 hover:bg-orange-500 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="แก้ไขรายการเบิกนี้">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <!-- ปุ่มปริ้น PDF -->
+                        <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="พิมพ์ใบเบิก PDF">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
                 </div>
             `;
         });
     }
 }
 
-// Event Listeners สำหรับปุ่มกรองและปุ่มล้างค่าในหน้าประวัติการเบิก
 document.getElementById('filterWithdrawBtn')?.addEventListener('click', () => {
     if (!document.getElementById('withdrawStartDate').value && !document.getElementById('withdrawEndDate').value) {
         alert("กรุณาเลือกวันที่ที่ต้องการกรอง"); return;
@@ -295,10 +297,9 @@ function getFormattedDate() {
 }
 
 // ==========================================
-// 5. บันทึกข้อมูล (รับเข้าใหม่ / เบิกออก / เพิ่มสต็อกเดิม)
+// 5. บันทึกและแก้ไขข้อมูล
 // ==========================================
 
-// 5.1 สร้างสินค้าใหม่เข้าสต็อก (New Product)
 document.getElementById('addBtn').addEventListener('click', async () => {
     const code = document.getElementById('itemCode').value.trim() || "-";
     const name = document.getElementById('itemName').value.trim();
@@ -316,7 +317,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
 
     try {
         await addDoc(collection(db, "products"), { code, name, qty, price, image: base64Image });
-        
         if(qty > 0) {
             await addDoc(collection(db, "add_history"), {
                 docId: 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
@@ -324,7 +324,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
                 date: getFormattedDate(), timestamp: Date.now()
             });
         }
-
         ['itemCode', 'itemName', 'itemQty', 'itemPrice', 'itemImage'].forEach(id => document.getElementById(id).value = '');
         alert('สร้างรายการสินค้าเข้าสต็อกเรียบร้อยแล้ว');
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
@@ -332,7 +331,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกรายการใหม่'; btn.disabled = false;
 });
 
-// 5.2 เบิกสินค้าออก
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -362,7 +360,6 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก'; btn.disabled = false;
 });
 
-// 5.3 บันทึกการเพิ่มสต็อกสินค้าเดิม (Restock Existing Item)
 document.getElementById('saveRestockBtn').addEventListener('click', async () => {
     const id = document.getElementById('restockItemId').value;
     const code = document.getElementById('restockItemCode').value;
@@ -384,25 +381,16 @@ document.getElementById('saveRestockBtn').addEventListener('click', async () => 
 
         const docId = 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         await addDoc(collection(db, "add_history"), {
-            docId: docId,
-            itemName: name,
-            code: code || '-',
-            qty: addQty,
-            note: note,
-            date: getFormattedDate(),
-            timestamp: Date.now()
+            docId: docId, itemName: name, code: code || '-', qty: addQty, note: note, date: getFormattedDate(), timestamp: Date.now()
         });
 
         window.closeRestockModal();
-        alert(`✅ เพิ่มสต็อก "${name}" จำนวน +${addQty} ชิ้น เรียบร้อยแล้ว!\n(ยอดคงเหลือใหม่: ${newTotalQty} ชิ้น)`);
-    } catch (e) {
-        alert('ข้อผิดพลาดในการบันทึก: ' + e.message);
-    }
+        alert(`✅ เพิ่มสต็อก "${name}" จำนวน +${addQty} ชิ้น เรียบร้อยแล้ว!`);
+    } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
     btn.innerHTML = '<i class="fas fa-plus"></i> ยืนยันเพิ่มสต็อก'; btn.disabled = false;
 });
 
-// 5.4 บันทึกการแก้ไขข้อมูลทั่วไป
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editItemId').value;
     const code = document.getElementById('editItemCode').value.trim() || "-";
@@ -427,6 +415,53 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกการแก้ไข'; btn.disabled = false;
 });
 
+// ⚠️ ใหม่: บันทึกการแก้ไขประวัติการเบิก (ปรับยอดสต็อกให้อัตโนมัติด้วย) ⚠️
+document.getElementById('saveEditWithdrawBtn').addEventListener('click', async () => {
+    const id = document.getElementById('editWithId').value;
+    const code = document.getElementById('editWithCode').value;
+    const name = document.getElementById('editWithProductName').value;
+    const oldQty = Number(document.getElementById('editWithOldQty').value);
+    const newQty = Number(document.getElementById('editWithQty').value);
+    const newNote = document.getElementById('editWithNote').value.trim() || 'ไม่ระบุ';
+    const newDate = document.getElementById('editWithDate').value.trim();
+
+    if (!newQty || newQty <= 0) return alert('กรุณาระบุจำนวนที่เบิกให้ถูกต้อง (ต้องมากกว่า 0)');
+
+    const btn = document.getElementById('saveEditWithdrawBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true;
+
+    try {
+        // 1. ตรวจสอบว่ามีการเปลี่ยนจำนวนชิ้นหรือไม่ ถ้าเปลี่ยนต้องไปปรับสต็อกสินค้าหลักด้วย
+        const diff = newQty - oldQty; // ถ้า diff > 0 แปลว่าเบิกเพิ่ม (สต็อกต้องลดลง) / ถ้า diff < 0 แปลว่าลดจำนวนเบิก (ได้ของคืนเข้าสต็อก)
+        if (diff !== 0) {
+            const product = products.find(p => (p.name === name) || (p.code === code));
+            if (product) {
+                const updatedStock = (product.qty || 0) - diff;
+                if (updatedStock < 0) {
+                    alert(`⚠️ ไม่สามารถแก้ไขจำนวนเบิกเป็น ${newQty} ชิ้นได้ เนื่องจากสินค้าในคลังคงเหลือไม่เพียงพอ (มีอยู่ ${product.qty} ชิ้น)`);
+                    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกการแก้ไข'; btn.disabled = false;
+                    return;
+                }
+                await updateDoc(doc(db, "products", product.id), { qty: updatedStock });
+            }
+        }
+
+        // 2. อัปเดตข้อมูลในประวัติการเบิก
+        await updateDoc(doc(db, "withdraw_history", id), {
+            qty: newQty,
+            note: newNote,
+            date: newDate
+        });
+
+        window.closeEditWithdrawModal();
+        alert('✅ แก้ไขประวัติการเบิกเรียบร้อยแล้ว (ระบบปรับยอดสต็อกให้อัตโนมัติ)');
+    } catch (e) {
+        alert('เกิดข้อผิดพลาดในการบันทึก: ' + e.message);
+    }
+
+    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกการแก้ไข'; btn.disabled = false;
+});
+
 // ==========================================
 // 6. Global Functions สำหรับเรียกใช้จาก HTML
 // ==========================================
@@ -442,7 +477,6 @@ window.openRestockModal = function(id) {
     document.getElementById('restockModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('restockQtyInput').focus(), 100);
 };
-
 window.closeRestockModal = () => document.getElementById('restockModal').classList.add('hidden');
 
 window.openEditModal = function(id) {
@@ -456,8 +490,27 @@ window.openEditModal = function(id) {
     document.getElementById('editItemImage').value = ''; 
     document.getElementById('editModal').classList.remove('hidden');
 };
-
 window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
+
+// ⚠️ ใหม่: เปิด Modal แก้ไขประวัติการเบิก ⚠️
+window.openEditWithdrawModal = function(id) {
+    const history = withdrawHistory.find(h => h.id === id);
+    if (!history) return;
+    
+    document.getElementById('editWithId').value = history.id;
+    document.getElementById('editWithCode').value = history.code || '-';
+    document.getElementById('editWithProductName').value = history.itemName || '';
+    document.getElementById('editWithOldQty').value = history.qty || 0;
+    
+    document.getElementById('editWithdrawTitle').innerText = `เอกสาร: ${history.docId || '-'} (${history.itemName})`;
+    document.getElementById('editWithQty').value = history.qty || 0;
+    document.getElementById('editWithNote').value = history.note || '';
+    document.getElementById('editWithDate').value = history.date || getFormattedDate();
+    
+    document.getElementById('editWithdrawModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('editWithQty').focus(), 100);
+};
+window.closeEditWithdrawModal = () => document.getElementById('editWithdrawModal').classList.add('hidden');
 
 window.deleteProduct = async (id) => {
     if(confirm('⚠️ ยืนยันการลบสินค้านี้?')) {
@@ -466,11 +519,49 @@ window.deleteProduct = async (id) => {
     }
 };
 
+// ⚠️ อัปเกรด: ฟังก์ชันสร้างไฟล์ PDF แก้ปัญหากระดาษเปล่า 100% ⚠️
 window.printPDF = (id, name, code, qty, user, date) => {
-    document.getElementById('pdfDocId').innerText = id; document.getElementById('pdfUser').innerText = user;
-    document.getElementById('pdfDate').innerText = date; document.getElementById('pdfItemCode').innerText = code;
-    document.getElementById('pdfItemName').innerText = name; document.getElementById('pdfItemQty').innerText = qty;
+    const el = document.getElementById('pdfTemplate');
+    if (!el) return;
+
+    // เติมข้อความลงในโครงสร้างเอกสาร
+    document.getElementById('pdfDocId').innerText = id || '-';
+    document.getElementById('pdfUser').innerText = user || '-';
+    document.getElementById('pdfDate').innerText = date || '-';
+    document.getElementById('pdfItemCode').innerText = code || '-';
+    document.getElementById('pdfItemName').innerText = name || '-';
+    document.getElementById('pdfItemQty').innerText = `${qty} ชิ้น`;
     
-    const el = document.getElementById('pdfTemplate'); el.classList.remove('hidden');
-    html2pdf().set({ margin: 10, filename: `ใบเบิก_${id}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => el.classList.add('hidden'));
+    // ตั้งค่าสไตล์ให้อยู่ในหน้าจอ (พิกัด 0,0) เพื่อให้ html2canvas มองเห็นและเรนเดอร์ได้ ไม่เป็นหน้าขาว
+    el.style.display = 'block';
+    el.style.position = 'fixed';
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.style.zIndex = '-9999';
+
+    // หน่วงเวลา 300ms เพื่อให้เบราว์เซอร์จัดเรียงข้อความและฟอนต์เรียบร้อยก่อนถ่ายภาพ
+    setTimeout(() => {
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     `ใบเบิกสินค้า_${id || 'slip'}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                scrollY: 0, 
+                scrollX: 0,
+                windowWidth: 1200 
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(el).save().then(() => {
+            // ซ่อนเอกสารกลับไปเมื่อสร้างไฟล์เสร็จ
+            el.style.display = 'none';
+        }).catch(err => {
+            console.error("PDF Error:", err);
+            alert("เกิดข้อผิดพลาดในการสร้างไฟล์ PDF กรุณาลองใหม่อีกครั้ง");
+            el.style.display = 'none';
+        });
+    }, 300);
 };
