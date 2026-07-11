@@ -26,6 +26,11 @@ let addHistory = [];
 let unsubscribeProducts = null, unsubscribeHistory = null, unsubscribeAddHistory = null;
 let currentPrintData = {}; 
 
+// ตัวแปรสำหรับเก็บรายการที่ถูกกรองใน Dashboard เพื่อให้ Modal ดึงไปใช้ต่อได้ทันที
+let currentFilteredAdd = [];
+let currentFilteredWith = [];
+let currentDateRangeText = "ทั้งหมดตั้งแต่เริ่มระบบ";
+
 // ==========================================
 // 1. ระบบ Authentication
 // ==========================================
@@ -66,7 +71,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 });
 
 // ==========================================
-// 🌟 1.1 ระบบควบคุม Responsive Sidebar (เพิ่มใหม่ให้รองรับ มือถือ/แท็บเล็ต) 🌟
+// 1.1 ระบบควบคุม Responsive Sidebar
 // ==========================================
 const sidebar = document.getElementById('sidebar');
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -88,15 +93,12 @@ if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', () => toggleSidebar(t
 if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => toggleSidebar(false));
 if (sidebarOverlay) sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
 
-// Navigation & ปิด Sidebar อัตโนมัติเมื่อเลือกเมนูบนหน้าจอมือถือ
 document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
         btn.classList.add('active');
         document.getElementById(btn.getAttribute('data-target')).classList.remove('hidden');
-        
-        // ถ้าหน้าจอเล็กกว่า 768px ให้ปิด Sidebar อัตโนมัติหลังกดเมนู
         if (window.innerWidth <= 768) toggleSidebar(false);
     });
 });
@@ -146,7 +148,7 @@ function loadData() {
 }
 
 // ==========================================
-// 3. จัดการ Dashboard (ระบบวิเคราะห์ + กราฟ Responsive)
+// 3. จัดการ Dashboard
 // ==========================================
 function updateDashboard() {
     let totalItems = products.length;
@@ -158,26 +160,26 @@ function updateDashboard() {
     const startDateVal = document.getElementById('dashStartDate').value;
     const endDateVal = document.getElementById('dashEndDate').value;
     
-    let filteredAdd = addHistory;
-    let filteredWith = withdrawHistory;
-    let dateRangeText = "ทั้งหมดตั้งแต่เริ่มระบบ";
+    currentFilteredAdd = addHistory;
+    currentFilteredWith = withdrawHistory;
+    currentDateRangeText = "ทั้งหมดตั้งแต่เริ่มระบบ";
 
     if (startDateVal && endDateVal) {
         const start = new Date(startDateVal).setHours(0,0,0,0);
         const end = new Date(endDateVal).setHours(23,59,59,999);
-        filteredAdd = addHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
-        filteredWith = withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
-        dateRangeText = `${new Date(startDateVal).toLocaleDateString('th-TH')} ถึง ${new Date(endDateVal).toLocaleDateString('th-TH')}`;
+        currentFilteredAdd = addHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+        currentFilteredWith = withdrawHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
+        currentDateRangeText = `${new Date(startDateVal).toLocaleDateString('th-TH')} ถึง ${new Date(endDateVal).toLocaleDateString('th-TH')}`;
     }
 
-    let addedQty = filteredAdd.reduce((sum, h) => sum + (h.qty || 0), 0);
-    let withQty = filteredWith.reduce((sum, h) => sum + (h.qty || 0), 0);
+    let addedQty = currentFilteredAdd.reduce((sum, h) => sum + (h.qty || 0), 0);
+    let withQty = currentFilteredWith.reduce((sum, h) => sum + (h.qty || 0), 0);
 
     document.getElementById('dashAddedPeriod').innerHTML = `${addedQty.toLocaleString()} <span class="text-xs sm:text-sm font-normal text-blue-500">ชิ้น</span>`;
-    document.getElementById('dashAddedCount').innerText = `จาก ${filteredAdd.length} รายการ`;
+    document.getElementById('dashAddedCount').innerText = `จาก ${currentFilteredAdd.length} รายการ`;
     
     document.getElementById('dashWithdrawnPeriod').innerHTML = `${withQty.toLocaleString()} <span class="text-xs sm:text-sm font-normal text-orange-500">ชิ้น</span>`;
-    document.getElementById('dashWithdrawnCount').innerText = `จาก ${filteredWith.length} รายการ`;
+    document.getElementById('dashWithdrawnCount').innerText = `จาก ${currentFilteredWith.length} รายการ`;
 
     const totalMove = addedQty + withQty;
     const barIn = document.getElementById('ratioBarIn');
@@ -187,7 +189,7 @@ function updateDashboard() {
     if (totalMove === 0) {
         barIn.style.width = '50%';
         ratioText.innerText = "0% / 0%";
-        statusText.innerHTML = `ช่วงเวลา <strong>${dateRangeText}</strong><br>ยังไม่มีการเคลื่อนไหวของสต็อก`;
+        statusText.innerHTML = `ช่วงเวลา <strong>${currentDateRangeText}</strong><br>ยังไม่มีการเคลื่อนไหวของสต็อก`;
     } else {
         const inPercent = Math.round((addedQty / totalMove) * 100);
         const outPercent = 100 - inPercent;
@@ -198,7 +200,7 @@ function updateDashboard() {
         if (inPercent > 70) insight = "<span class='text-blue-600 font-medium'>มีการนำเข้าสต็อกเป็นจำนวนมากในช่วงเวลานี้</span>";
         else if (outPercent > 70) insight = "<span class='text-orange-600 font-medium'>มีการเบิกสินค้าออกค่อนข้างสูง โปรดระวังของขาดสต็อก</span>";
         
-        statusText.innerHTML = `ช่วงเวลา: <strong>${dateRangeText}</strong><br>${insight}`;
+        statusText.innerHTML = `ช่วงเวลา: <strong>${currentDateRangeText}</strong><br>${insight}`;
     }
 
     let sortedProducts = [...products].sort((a,b) => b.qty - a.qty).slice(0, 10);
@@ -227,10 +229,7 @@ function updateDashboard() {
     }
 }
 
-// อัปเดตขนาด Chart เมื่อผู้ใช้หมุนจอหรือปรับขนาดจอ
-window.addEventListener('resize', () => {
-    if(myChart) myChart.resize();
-});
+window.addEventListener('resize', () => { if(myChart) myChart.resize(); });
 
 document.getElementById('filterDashBtn')?.addEventListener('click', () => {
     if (!document.getElementById('dashStartDate').value || !document.getElementById('dashEndDate').value) {
@@ -247,10 +246,7 @@ document.getElementById('clearDashBtn')?.addEventListener('click', () => {
 // ==========================================
 // 4. การจัดการตารางและการเบิก
 // ==========================================
-document.getElementById('productSearchInput')?.addEventListener('input', () => {
-    updateStockTable();
-});
-
+document.getElementById('productSearchInput')?.addEventListener('input', () => updateStockTable());
 document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
     const searchInput = document.getElementById('productSearchInput');
     if(searchInput) searchInput.value = '';
@@ -670,4 +666,75 @@ window.confirmDownloadPDF = () => {
         btn.disabled = false;
         window.closePrintModal();
     });
+};
+
+// ==========================================
+// 🌟 6.1 เปิดหน้าต่างแสดงรายละเอียด รับเข้า/เบิกออก จาก Dashboard (เพิ่มใหม่) 🌟
+// ==========================================
+window.openHistoryDetailModal = function(type) {
+    const header = document.getElementById('historyModalHeader');
+    const subtitle = document.getElementById('historyModalSubtitle');
+    const tbody = document.getElementById('historyDetailTableBody');
+    const summary = document.getElementById('historyModalSummaryText');
+    
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    let data = [];
+    let totalQty = 0;
+    
+    if (type === 'add') {
+        data = currentFilteredAdd;
+        header.innerHTML = `
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-xl sm:text-2xl mr-1">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <h3 class="text-xl sm:text-2xl font-bold text-gray-800">รายละเอียดรายการ "รับเข้าสต็อก"</h3>
+        `;
+    } else {
+        data = currentFilteredWith;
+        header.innerHTML = `
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center text-xl sm:text-2xl mr-1">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <h3 class="text-xl sm:text-2xl font-bold text-gray-800">รายละเอียดรายการ "เบิกสินค้าออก"</h3>
+        `;
+    }
+    
+    subtitle.innerText = `ช่วงเวลาที่เลือก: ${currentDateRangeText}`;
+    
+    if (data.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="p-8 text-center text-gray-400 bg-gray-50/50 rounded-xl my-4">
+                    <i class="fas fa-inbox text-3xl mb-2 block text-gray-300"></i>
+                    ไม่พบรายการในช่วงเวลานี้
+                </td>
+            </tr>`;
+    } else {
+        data.forEach(item => {
+            totalQty += (item.qty || 0);
+            const qtyBadge = type === 'add' 
+                ? `<span class="font-bold text-blue-600 text-sm sm:text-base">+${(item.qty||0).toLocaleString()}</span>`
+                : `<span class="font-bold text-orange-600 text-sm sm:text-base">-${(item.qty||0).toLocaleString()}</span>`;
+                
+            tbody.innerHTML += `
+                <tr class="hover:bg-indigo-50/40 transition-colors border-b border-gray-100">
+                    <td class="p-3 text-gray-500 whitespace-nowrap text-xs">${item.date || '-'}</td>
+                    <td class="p-3 font-semibold text-gray-700 whitespace-nowrap">${item.docId || '-'}</td>
+                    <td class="p-3 font-medium text-gray-900">
+                        ${item.code && item.code !== '-' ? `<span class="text-indigo-600 font-semibold">[${item.code}]</span> ` : ''}${item.itemName || '-'}
+                    </td>
+                    <td class="p-3 text-center whitespace-nowrap">${qtyBadge} <span class="text-xs text-gray-400 font-normal">ชิ้น</span></td>
+                    <td class="p-3 text-gray-600 text-xs">${item.note || '-'}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    summary.innerHTML = `พบข้อมูล: <strong class="text-indigo-600">${data.length}</strong> รายการ | ยอดรวมทั้งสิ้น: <strong class="${type === 'add' ? 'text-blue-600' : 'text-orange-600'} text-base">${totalQty.toLocaleString()}</strong> ชิ้น`;
+    document.getElementById('historyDetailModal').classList.remove('hidden');
+};
+
+window.closeHistoryDetailModal = () => {
+    document.getElementById('historyDetailModal').classList.add('hidden');
 };
