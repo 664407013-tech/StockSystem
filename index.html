@@ -172,7 +172,6 @@
                 <section id="stock-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">จัดการสต็อกสินค้า</h1>
                     
-                    <!-- กล่องสร้างสินค้าใหม่เข้าสต็อก -->
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
                         <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2"><i class="fas fa-plus-circle text-indigo-500"></i> สร้างรายการสินค้าใหม่</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
@@ -204,7 +203,6 @@
                         </div>
                     </div>
 
-                    <!-- ตารางแสดงรายการสินค้าทั้งหมด -->
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -224,13 +222,14 @@
                     </div>
                 </section>
 
-                <!-- ================= 2.3 ทำรายการเบิก ================= -->
+                <!-- ================= 2.3 ทำรายการเบิก (อัปเกรดระบบกรองวันที่) ================= -->
                 <section id="withdraw-view" class="view-section fade-in hidden">
                     <h1 class="text-3xl font-bold text-gray-900 mb-8">ทำรายการเบิกสินค้า</h1>
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                            <h3 class="text-lg font-semibold mb-4 text-gray-800"><i class="fas fa-hand-holding-box text-indigo-500"></i> รายละเอียดการเบิก</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <!-- กล่องด้านซ้าย ( 5 ส่วน ) -->
+                        <div class="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-3"><i class="fas fa-hand-holding-box text-indigo-500 mr-2"></i>รายละเอียดการเบิก</h3>
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">เลือกสินค้า <span class="text-red-500">*</span></label>
@@ -238,21 +237,46 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">จำนวนที่ต้องการเบิก <span class="text-red-500">*</span></label>
-                                    <input type="number" id="withdrawQty" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="1">
+                                    <input type="number" id="withdrawQty" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" min="1" placeholder="ระบุจำนวน...">
                                 </div>
                                 <div>
                                     <label class="block text-sm text-gray-600 mb-1">ผู้เบิก / หมายเหตุ</label>
                                     <input type="text" id="withdrawNote" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="เช่น นายเอ เบิกไปใช้ในแผนกช่าง">
                                 </div>
-                                <button id="withdrawBtn" class="w-full bg-orange-500 text-white px-6 py-3 rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 mt-2 font-medium shadow-sm">
+                                <button id="withdrawBtn" class="w-full bg-orange-500 text-white px-6 py-3.5 rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 mt-4 font-medium shadow-sm">
                                     <i class="fas fa-check-circle"></i> ยืนยันการเบิก
                                 </button>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                            <h3 class="text-lg font-semibold mb-4 text-gray-800"><i class="fas fa-history text-indigo-500"></i> ประวัติการเบิกล่าสุด</h3>
-                            <div class="overflow-y-auto max-h-[400px] pr-2 space-y-4" id="trackingList"></div>
+                        <!-- กล่องด้านขวา ( 7 ส่วน ) อัปเกรดตัวกรองวันที่ -->
+                        <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3 border-b pb-4">
+                                <h3 class="text-lg font-semibold text-gray-800 whitespace-nowrap"><i class="fas fa-history text-indigo-500 mr-2"></i>ประวัติการเบิกล่าสุด</h3>
+                                
+                                <!-- เครื่องมือกรองวันที่สำหรับประวัติการเบิกโดยเฉพาะ -->
+                                <div class="flex flex-wrap items-center gap-2 w-full xl:w-auto bg-gray-50 p-2 rounded-xl border border-gray-200/60">
+                                    <div class="flex items-center gap-1.5 flex-1 sm:flex-none">
+                                        <span class="text-xs text-gray-500 font-medium">เริ่ม:</span>
+                                        <input type="date" id="withdrawStartDate" class="p-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-1 sm:flex-none">
+                                        <span class="text-xs text-gray-500 font-medium">ถึง:</span>
+                                        <input type="date" id="withdrawEndDate" class="p-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    </div>
+                                    <div class="flex gap-1 w-full sm:w-auto mt-1 sm:mt-0">
+                                        <button id="filterWithdrawBtn" class="flex-1 sm:flex-none bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition text-xs font-medium flex items-center justify-center gap-1" title="กรองวันที่">
+                                            <i class="fas fa-search"></i> กรอง
+                                        </button>
+                                        <button id="clearWithdrawBtn" class="flex-1 sm:flex-none bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300 transition text-xs font-medium flex items-center justify-center gap-1" title="ล้างค่าทั้งหมด">
+                                            <i class="fas fa-sync-alt"></i> ล้าง
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ส่วนแสดงรายการประวัติการเบิก -->
+                            <div class="overflow-y-auto max-h-[480px] pr-2 space-y-3 flex-1" id="trackingList"></div>
                         </div>
                     </div>
                 </section>
