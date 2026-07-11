@@ -22,7 +22,7 @@ const auth = getAuth(app);
 let myChart = null;
 let products = [];
 let withdrawHistory = []; 
-let addHistory = []; // เพิ่มตัวแปรเก็บประวัติรับเข้า
+let addHistory = []; 
 let unsubscribeProducts = null, unsubscribeHistory = null, unsubscribeAddHistory = null;
 
 // ==========================================
@@ -87,7 +87,7 @@ function loadData() {
             products = [];
             snapshot.forEach((doc) => products.push({ id: doc.id, ...doc.data() }));
             updateStockTable();
-            updateDashboard(); // อัปเดต Dashboard
+            updateDashboard();
         });
 
         // ดึงประวัติการเบิกออก
@@ -99,7 +99,7 @@ function loadData() {
             updateDashboard();
         });
 
-        // ดึงประวัติการรับเข้า (ใหม่)
+        // ดึงประวัติการรับเข้า
         unsubscribeAddHistory = onSnapshot(collection(db, "add_history"), (snapshot) => {
             addHistory = [];
             snapshot.forEach((doc) => addHistory.push({ id: doc.id, ...doc.data() }));
@@ -115,14 +115,12 @@ function loadData() {
 // 3. จัดการ Dashboard (ระบบวิเคราะห์)
 // ==========================================
 function updateDashboard() {
-    // 1. สรุปยอดรวมปัจจุบัน (ไม่ขึ้นกับวันที่)
     let totalItems = products.length;
     let totalValue = products.reduce((sum, p) => sum + ((p.qty || 0) * (p.price || 0)), 0);
     
     document.getElementById('dashCurrentItems').innerText = totalItems.toLocaleString();
     document.getElementById('dashCurrentValue').innerText = `฿${totalValue.toLocaleString()}`;
 
-    // 2. หาวันที่สำหรับกรอง (ถ้าไม่ได้เลือก จะแสดงทั้งหมด)
     const startDateVal = document.getElementById('dashStartDate').value;
     const endDateVal = document.getElementById('dashEndDate').value;
     
@@ -138,7 +136,6 @@ function updateDashboard() {
         dateRangeText = `${new Date(startDateVal).toLocaleDateString('th-TH')} ถึง ${new Date(endDateVal).toLocaleDateString('th-TH')}`;
     }
 
-    // 3. คำนวณยอด รับเข้า / เบิกออก ในช่วงเวลา
     let addedQty = filteredAdd.reduce((sum, h) => sum + (h.qty || 0), 0);
     let withQty = filteredWith.reduce((sum, h) => sum + (h.qty || 0), 0);
 
@@ -148,7 +145,6 @@ function updateDashboard() {
     document.getElementById('dashWithdrawnPeriod').innerHTML = `${withQty.toLocaleString()} <span class="text-sm font-normal text-orange-500">ชิ้น</span>`;
     document.getElementById('dashWithdrawnCount').innerText = `จาก ${filteredWith.length} รายการ`;
 
-    // 4. แสดงแถบเปรียบเทียบ (Ratio Bar)
     const totalMove = addedQty + withQty;
     const barIn = document.getElementById('ratioBarIn');
     const ratioText = document.getElementById('ratioText');
@@ -165,13 +161,12 @@ function updateDashboard() {
         ratioText.innerText = `${inPercent}% / ${outPercent}%`;
         
         let insight = "สินค้ามีการหมุนเวียนปกติ";
-        if (inPercent > 70) insight = "<span class='text-blue-600'>มีการนำเข้าสต็อกเป็นจำนวนมากในช่วงเวลานี้</span>";
+        if (inPercent > 70) insight = "<span class='text-blue-600 font-medium'>มีการนำเข้าสต็อกเป็นจำนวนมากในช่วงเวลานี้</span>";
         else if (outPercent > 70) insight = "<span class='text-orange-600 font-medium'>มีการเบิกสินค้าออกค่อนข้างสูง โปรดระวังของขาดสต็อก</span>";
         
         statusText.innerHTML = `ช่วงเวลา: <strong>${dateRangeText}</strong><br>${insight}`;
     }
 
-    // 5. วาดกราฟ 10 อันดับแรกที่มีของเยอะสุด
     let sortedProducts = [...products].sort((a,b) => b.qty - a.qty).slice(0, 10);
     const chartCanvas = document.getElementById('stockChart');
     if (chartCanvas) {
@@ -188,7 +183,6 @@ function updateDashboard() {
     }
 }
 
-// ปุ่มกรอง Dashboard
 document.getElementById('filterDashBtn').addEventListener('click', () => {
     if (!document.getElementById('dashStartDate').value || !document.getElementById('dashEndDate').value) {
         alert("กรุณาเลือกวันที่เริ่มต้นและสิ้นสุดให้ครบถ้วน"); return;
@@ -209,10 +203,13 @@ function updateStockTable() {
     const select = document.getElementById('withdrawSelect');
     if(!tbody || !select) return; 
 
-    tbody.innerHTML = ''; select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
+    tbody.innerHTML = ''; 
+    select.innerHTML = '<option value="">-- กรุณาเลือกสินค้า --</option>';
 
     products.forEach(p => {
         const imgTag = p.image ? `<img src="${p.image}" class="w-10 h-10 rounded-lg object-cover shadow-sm">` : `<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400"><i class="fas fa-image"></i></div>`;
+        
+        // ⚠️ เพิ่มปุ่ม "เพิ่มสต็อก" (สีเขียว) ตรงช่องจัดการ ⚠️
         tbody.innerHTML += `
             <tr class="hover:bg-indigo-50/50 transition-colors border-b border-gray-50">
                 <td class="p-4">${imgTag}</td>
@@ -221,8 +218,9 @@ function updateStockTable() {
                 <td class="p-4 ${p.qty < 10 ? 'text-red-600 font-bold bg-red-50 rounded-lg px-2 py-1 inline-block mt-2' : 'text-gray-600'}">${(p.qty||0).toLocaleString()}</td>
                 <td class="p-4 text-gray-600">฿${(p.price||0).toLocaleString()}</td>
                 <td class="p-4 text-center whitespace-nowrap">
-                    <button class="text-blue-500 hover:bg-blue-100 p-2 rounded-lg transition mr-2" onclick="window.openEditModal('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="text-red-500 hover:bg-red-100 p-2 rounded-lg transition" onclick="window.deleteProduct('${p.id}')"><i class="fas fa-trash"></i></button>
+                    <button class="text-green-600 bg-green-50 hover:bg-green-600 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openRestockModal('${p.id}')" title="เพิ่มสต็อกเข้า"><i class="fas fa-plus-circle"></i></button>
+                    <button class="text-blue-500 bg-blue-50 hover:bg-blue-500 hover:text-white p-2 rounded-lg transition mr-1.5" onclick="window.openEditModal('${p.id}')" title="แก้ไขข้อมูล"><i class="fas fa-edit"></i></button>
+                    <button class="text-red-500 bg-red-50 hover:bg-red-500 hover:text-white p-2 rounded-lg transition" onclick="window.deleteProduct('${p.id}')" title="ลบสินค้า"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
@@ -256,15 +254,16 @@ function updateWithdrawList() {
     }
 }
 
-// ==========================================
-// 5. บันทึกข้อมูล (รับเข้า / เบิกออก)
-// ==========================================
 function getFormattedDate() {
     const now = new Date();
     return `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 }
 
-// 5.1 เพิ่มสินค้า (บันทึกลง Products + Add_History)
+// ==========================================
+// 5. บันทึกข้อมูล (รับเข้าใหม่ / เบิกออก / เพิ่มสต็อกเดิม)
+// ==========================================
+
+// 5.1 สร้างสินค้าใหม่เข้าสต็อก (New Product)
 document.getElementById('addBtn').addEventListener('click', async () => {
     const code = document.getElementById('itemCode').value.trim() || "-";
     const name = document.getElementById('itemName').value.trim();
@@ -272,7 +271,7 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     const price = Number(document.getElementById('itemPrice').value) || 0;
     const fileInput = document.getElementById('itemImage');
     
-    if(!name || qty <= 0) return alert("กรุณากรอกชื่อสินค้าและจำนวนให้ถูกต้อง (มากกว่า 0)");
+    if(!name) return alert("กรุณากรอกชื่อสินค้า");
 
     const btn = document.getElementById('addBtn');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
@@ -281,24 +280,25 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     if(fileInput.files.length > 0) base64Image = await getBase64(fileInput.files[0]);
 
     try {
-        // 1. นำเข้าตารางสินค้าหลัก
         await addDoc(collection(db, "products"), { code, name, qty, price, image: base64Image });
         
-        // 2. บันทึกประวัติการรับเข้า (เพื่อให้ Dashboard คำนวณได้)
-        await addDoc(collection(db, "add_history"), {
-            docId: 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
-            itemName: name, code: code, qty: qty, 
-            date: getFormattedDate(), timestamp: Date.now()
-        });
+        // ถ้าใส่จำนวนเริ่มต้นมากกว่า 0 ให้บันทึกประวัติรับเข้าด้วย
+        if(qty > 0) {
+            await addDoc(collection(db, "add_history"), {
+                docId: 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+                itemName: name, code: code, qty: qty, 
+                date: getFormattedDate(), timestamp: Date.now()
+            });
+        }
 
         ['itemCode', 'itemName', 'itemQty', 'itemPrice', 'itemImage'].forEach(id => document.getElementById(id).value = '');
-        alert('บันทึกรับเข้าสินค้าเรียบร้อยแล้ว');
+        alert('สร้างรายการสินค้าเข้าสต็อกเรียบร้อยแล้ว');
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
-    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกรับเข้าสต็อก'; btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> บันทึกรายการใหม่'; btn.disabled = false;
 });
 
-// 5.2 เบิกสินค้า (ตัดสต็อก + บันทึก Withdraw_History)
+// 5.2 เบิกสินค้าออก
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -328,7 +328,49 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก'; btn.disabled = false;
 });
 
-// 5.3 บันทึกการแก้ไข
+// 5.3 บันทึกการเพิ่มสต็อกสินค้าเดิม (Restock Existing Item) - ฟังก์ชันใหม่!
+document.getElementById('saveRestockBtn').addEventListener('click', async () => {
+    const id = document.getElementById('restockItemId').value;
+    const code = document.getElementById('restockItemCode').value;
+    const name = document.getElementById('restockItemName').value;
+    const addQty = Number(document.getElementById('restockQtyInput').value);
+    const note = document.getElementById('restockNoteInput').value.trim() || 'รับของเข้าสต็อกเพิ่ม';
+
+    if(!addQty || addQty <= 0) return alert('กรุณาระบุจำนวนที่ต้องการเพิ่มให้ถูกต้อง');
+
+    const product = products.find(p => p.id === id);
+    if(!product) return alert('ไม่พบข้อมูลสินค้านี้');
+
+    const btn = document.getElementById('saveRestockBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...'; btn.disabled = true;
+
+    try {
+        // 1. อัปเดตยอดคงเหลือในตารางหลัก
+        const newTotalQty = (product.qty || 0) + addQty;
+        await updateDoc(doc(db, "products", id), { qty: newTotalQty });
+
+        // 2. บันทึกลงประวัติรับเข้า (Add History) เพื่อให้ระบบสรุปยอด Dashboard คำนวณได้
+        const docId = 'ADD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        await addDoc(collection(db, "add_history"), {
+            docId: docId,
+            itemName: name,
+            code: code || '-',
+            qty: addQty,
+            note: note,
+            date: getFormattedDate(),
+            timestamp: Date.now()
+        });
+
+        window.closeRestockModal();
+        alert(`✅ เพิ่มสต็อก "${name}" จำนวน +${addQty} ชิ้น เรียบร้อยแล้ว!\n(ยอดคงเหลือใหม่: ${newTotalQty} ชิ้น)`);
+    } catch (e) {
+        alert('ข้อผิดพลาดในการบันทึก: ' + e.message);
+    }
+
+    btn.innerHTML = '<i class="fas fa-plus"></i> ยืนยันเพิ่มสต็อก'; btn.disabled = false;
+});
+
+// 5.4 บันทึกการแก้ไขข้อมูลทั่วไป
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editItemId').value;
     const code = document.getElementById('editItemCode').value.trim() || "-";
@@ -354,8 +396,26 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
 });
 
 // ==========================================
-// 6. Global Functions
+// 6. Global Functions สำหรับเรียกใช้จาก HTML
 // ==========================================
+
+// เปิดหน้าต่างเพิ่มสต็อก
+window.openRestockModal = function(id) {
+    const product = products.find(p => p.id === id);
+    if(!product) return;
+    document.getElementById('restockItemId').value = product.id;
+    document.getElementById('restockItemCode').value = product.code || '';
+    document.getElementById('restockItemName').value = product.name || '';
+    document.getElementById('restockItemTitle').innerText = `สินค้า: [${product.code || '-'}] ${product.name} (มีอยู่เดิม ${product.qty} ชิ้น)`;
+    document.getElementById('restockQtyInput').value = '';
+    document.getElementById('restockNoteInput').value = '';
+    document.getElementById('restockModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('restockQtyInput').focus(), 100);
+};
+
+window.closeRestockModal = () => document.getElementById('restockModal').classList.add('hidden');
+
+// เปิดหน้าต่างแก้ไขสินค้า
 window.openEditModal = function(id) {
     const product = products.find(p => p.id === id);
     if(!product) return;
