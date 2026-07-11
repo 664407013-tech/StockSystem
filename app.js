@@ -24,6 +24,7 @@ let products = [];
 let withdrawHistory = []; 
 let addHistory = []; 
 let unsubscribeProducts = null, unsubscribeHistory = null, unsubscribeAddHistory = null;
+let currentPrintData = {}; // เก็บข้อมูลชั่วคราวก่อนพิมพ์
 
 // ==========================================
 // 1. ระบบ Authentication
@@ -82,7 +83,6 @@ function getBase64(file) {
 // ==========================================
 function loadData() {
     try {
-        // ดึงสต็อกปัจจุบัน
         unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
             products = [];
             snapshot.forEach((doc) => products.push({ id: doc.id, ...doc.data() }));
@@ -90,7 +90,6 @@ function loadData() {
             updateDashboard();
         });
 
-        // ดึงประวัติการเบิกออก
         unsubscribeHistory = onSnapshot(collection(db, "withdraw_history"), (snapshot) => {
             withdrawHistory = [];
             snapshot.forEach((doc) => withdrawHistory.push({ id: doc.id, ...doc.data() }));
@@ -99,7 +98,6 @@ function loadData() {
             updateDashboard();
         });
 
-        // ดึงประวัติการรับเข้า
         unsubscribeAddHistory = onSnapshot(collection(db, "add_history"), (snapshot) => {
             addHistory = [];
             snapshot.forEach((doc) => addHistory.push({ id: doc.id, ...doc.data() }));
@@ -227,24 +225,20 @@ function updateStockTable() {
     });
 }
 
-// ⚠️ ฟังก์ชันแสดงและกรองประวัติการเบิกออก (อัปเกรดใหม่) ⚠️
 function updateWithdrawList() {
     const trackList = document.getElementById('trackingList');
     if(!trackList) return;
     trackList.innerHTML = '';
     
-    // ดึงค่าจากตัวกรองวันที่
     const startDateVal = document.getElementById('withdrawStartDate')?.value;
     const endDateVal = document.getElementById('withdrawEndDate')?.value;
     let filteredHistory = [...withdrawHistory];
 
-    // คำนวณช่วงเวลาสำหรับการกรอง
     if (startDateVal && endDateVal) {
         const start = new Date(startDateVal).setHours(0,0,0,0);
         const end = new Date(endDateVal).setHours(23,59,59,999);
         filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
     } else if (startDateVal) {
-        // ถ้าเลือกแค่จุดเริ่มต้น ให้แสดงเฉพาะของวันนั้นวันเดียว
         const start = new Date(startDateVal).setHours(0,0,0,0);
         const end = new Date(startDateVal).setHours(23,59,59,999);
         filteredHistory = filteredHistory.filter(h => h.timestamp >= start && h.timestamp <= end);
@@ -268,14 +262,13 @@ function updateWithdrawList() {
                         <p class="text-sm text-gray-700">เบิก: <strong>${h.itemName || '-'}</strong> <span class="text-orange-600 font-bold">(${h.qty} ชิ้น)</span></p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-user-edit mr-1"></i>${h.note || '-'} | <i class="fas fa-clock ml-1 mr-1"></i>${h.date}</p>
                     </div>
-                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="พิมพ์ใบเบิก PDF"><i class="fas fa-print"></i></button>
+                    <button onclick="window.printPDF('${h.docId}', '${h.itemName}', '${h.code}', '${h.qty}', '${h.note}', '${h.date}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white p-3 rounded-xl transition-all shadow-sm" title="ตรวจสอบและพิมพ์ใบเบิก PDF"><i class="fas fa-print"></i></button>
                 </div>
             `;
         });
     }
 }
 
-// Event Listeners สำหรับปุ่มกรองและปุ่มล้างค่าในหน้าประวัติการเบิก
 document.getElementById('filterWithdrawBtn')?.addEventListener('click', () => {
     if (!document.getElementById('withdrawStartDate').value && !document.getElementById('withdrawEndDate').value) {
         alert("กรุณาเลือกวันที่ที่ต้องการกรอง"); return;
@@ -297,8 +290,6 @@ function getFormattedDate() {
 // ==========================================
 // 5. บันทึกข้อมูล (รับเข้าใหม่ / เบิกออก / เพิ่มสต็อกเดิม)
 // ==========================================
-
-// 5.1 สร้างสินค้าใหม่เข้าสต็อก (New Product)
 document.getElementById('addBtn').addEventListener('click', async () => {
     const code = document.getElementById('itemCode').value.trim() || "-";
     const name = document.getElementById('itemName').value.trim();
@@ -332,7 +323,6 @@ document.getElementById('addBtn').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fas fa-save"></i> บันทึกรายการใหม่'; btn.disabled = false;
 });
 
-// 5.2 เบิกสินค้าออก
 document.getElementById('withdrawBtn').addEventListener('click', async () => {
     const id = document.getElementById('withdrawSelect').value;
     const qty = Number(document.getElementById('withdrawQty').value);
@@ -356,13 +346,15 @@ document.getElementById('withdrawBtn').addEventListener('click', async () => {
         document.getElementById('withdrawQty').value = '';
         document.getElementById('withdrawNote').value = '';
         
-        if(confirm('✅ เบิกสำเร็จ! ต้องการพิมพ์ใบเบิก PDF หรือไม่?')) window.printPDF(docId, product.name, product.code, qty, note, dateStr);
+        // เมื่อเบิกสำเร็จ ให้แสดงตัวอย่างเอกสารก่อนกดปริ้น
+        if(confirm('✅ เบิกสินค้าสำเร็จ! ต้องการเปิดตรวจสอบตัวอย่างใบเบิก เพื่อพิมพ์ PDF หรือไม่?')) {
+            window.printPDF(docId, product.name, product.code, qty, note, dateStr);
+        }
     } catch (e) { alert('ข้อผิดพลาด: ' + e.message); }
 
     btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันการเบิก'; btn.disabled = false;
 });
 
-// 5.3 บันทึกการเพิ่มสต็อกสินค้าเดิม (Restock Existing Item)
 document.getElementById('saveRestockBtn').addEventListener('click', async () => {
     const id = document.getElementById('restockItemId').value;
     const code = document.getElementById('restockItemCode').value;
@@ -402,7 +394,6 @@ document.getElementById('saveRestockBtn').addEventListener('click', async () => 
     btn.innerHTML = '<i class="fas fa-plus"></i> ยืนยันเพิ่มสต็อก'; btn.disabled = false;
 });
 
-// 5.4 บันทึกการแก้ไขข้อมูลทั่วไป
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editItemId').value;
     const code = document.getElementById('editItemCode').value.trim() || "-";
@@ -466,11 +457,47 @@ window.deleteProduct = async (id) => {
     }
 };
 
+// ⚠️ อัปเกรดระบบพิมพ์: เปิด Modal ตัวอย่างเอกสารก่อน (Print Preview) ⚠️
 window.printPDF = (id, name, code, qty, user, date) => {
-    document.getElementById('pdfDocId').innerText = id; document.getElementById('pdfUser').innerText = user;
-    document.getElementById('pdfDate').innerText = date; document.getElementById('pdfItemCode').innerText = code;
-    document.getElementById('pdfItemName').innerText = name; document.getElementById('pdfItemQty').innerText = qty;
+    // เก็บข้อมูลไว้สำหรับการตั้งชื่อไฟล์
+    currentPrintData = { id, name, code, qty, user, date };
     
-    const el = document.getElementById('pdfTemplate'); el.classList.remove('hidden');
-    html2pdf().set({ margin: 10, filename: `ใบเบิก_${id}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(el).save().then(() => el.classList.add('hidden'));
+    // ใส่ข้อมูลลงในหน้ากระดาษตัวอย่าง
+    document.getElementById('pdfDocId').innerText = id || '-'; 
+    document.getElementById('pdfUser').innerText = user || '-';
+    document.getElementById('pdfDate').innerText = date || '-'; 
+    document.getElementById('pdfItemCode').innerText = code || '-';
+    document.getElementById('pdfItemName').innerText = name || '-'; 
+    document.getElementById('pdfItemQty').innerText = qty || '-';
+    
+    // เปิดหน้าต่าง Modal ตัวอย่างให้ผู้ใช้เช็คก่อนกดพิมพ์
+    document.getElementById('printPreviewModal').classList.remove('hidden');
+};
+
+window.closePrintModal = () => {
+    document.getElementById('printPreviewModal').classList.add('hidden');
+};
+
+// ฟังก์ชันสร้าง PDF จริง จากกระดาษที่แสดงบนหน้าจอ (การันตีไม่เป็นกระดาษเปล่า)
+window.confirmDownloadPDF = () => {
+    const el = document.getElementById('printableArea');
+    const btn = document.getElementById('confirmPrintBtn');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังสร้าง PDF...';
+    btn.disabled = true;
+
+    const opt = {
+        margin:       10,
+        filename:     `ใบเบิก_${currentPrintData.id || 'เอกสาร'}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(el).save().then(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        window.closePrintModal(); // ปิด Modal หลังจากดาวน์โหลดเสร็จ
+    });
 };
