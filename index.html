@@ -5,19 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockPro - System</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- ใช้ html2pdf เวอร์ชันเสถียรสุด -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
-    <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'Prompt', sans-serif; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        .fade-in { animation: fadeIn 0.25s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* สไตล์สำหรับ Scrollbar ใน Modal พรีวิว */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 8px; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -65,8 +67,14 @@
                     <i class="fas fa-file-export w-5"></i> ทำรายการเบิก
                 </button>
             </nav>
-            <div class="p-4 border-t border-gray-100">
-                <div class="mb-3 px-2">
+            
+            <div class="p-4 border-t border-gray-100 space-y-3">
+                <!-- ปุ่มกู้คืนข้อมูลตัวอย่าง (แก้ปัญหาข้อมูลหาย) -->
+                <button id="restoreDataBtn" class="w-full flex items-center justify-center gap-2 px-3 py-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition text-xs font-semibold" title="คลิกเพื่อสร้างข้อมูลตัวอย่างใหม่">
+                    <i class="fas fa-database"></i> กู้คืนข้อมูลตัวอย่าง
+                </button>
+
+                <div class="px-2">
                     <p class="text-xs text-gray-400">ผู้ใช้งานปัจจุบัน:</p>
                     <p class="text-sm font-medium text-gray-700 truncate" id="currentUserDisplay">...</p>
                 </div>
@@ -129,7 +137,7 @@
                                 <input type="number" id="itemPrice" class="w-full p-2.5 border rounded-xl outline-none text-sm" min="0" placeholder="0.00">
                             </div>
                             <div>
-                                <button id="addBtn" class="w-full bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 transition font-medium text-sm flex items-center justify-center gap-2">
+                                <button id="addBtn" class="w-full bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 transition font-medium text-sm flex items-center justify-center gap-2 shadow-sm">
                                     <i class="fas fa-save"></i> บันทึกรายการ
                                 </button>
                             </div>
@@ -151,7 +159,7 @@
                     </div>
                 </section>
 
-                <!-- 2.3 ทำรายการเบิก (จุดที่แก้ไขปุ่มให้เด่นชัดขึ้น) -->
+                <!-- 2.3 ทำรายการเบิก (มีปุ่ม แก้ไข และ ปริ้น PDF เด่นชัด) -->
                 <section id="withdraw-view" class="view-section fade-in hidden">
                     <h1 class="text-2xl font-bold text-gray-900 mb-6">ทำรายการเบิกสินค้า</h1>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -178,21 +186,62 @@
                             </div>
                         </div>
 
-                        <!-- ขวา: ประวัติการเบิกล่าสุด + ปุ่มแก้ไขและปริ้น PDF -->
+                        <!-- ขวา: ประวัติการเบิกล่าสุด -->
                         <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
                             <div class="flex justify-between items-center mb-4 border-b pb-4">
                                 <h3 class="text-md font-semibold text-gray-800"><i class="fas fa-history text-indigo-500 mr-2"></i>ประวัติการเบิกล่าสุด</h3>
                                 <span class="text-xs text-gray-400">อัปเดตแบบเรียลไทม์</span>
                             </div>
-                            
-                            <!-- ส่วนแสดงรายการ (มีปุ่ม แก้ไข ข้าง ปุ่มปริ้น PDF) -->
                             <div class="overflow-y-auto max-h-[500px] pr-1 space-y-3 flex-1" id="trackingList"></div>
                         </div>
 
                     </div>
                 </section>
 
-                <!-- Modal: สำหรับแก้ไขประวัติการเบิก -->
+                <!-- Modal 1: หน้าต่างตรวจสอบเอกสารก่อนพิมพ์ (Print Preview Modal) - แก้ปัญหากระดาษเปล่า 100% -->
+                <div id="printPreviewModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+                        
+                        <!-- Header ของ Modal พรีวิว -->
+                        <div class="p-4 md:p-6 bg-gray-900 text-white flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-lg"><i class="fas fa-file-pdf"></i></div>
+                                <div>
+                                    <h3 class="text-lg font-bold">ตรวจสอบเอกสารก่อนพิมพ์ (Print Preview)</h3>
+                                    <p class="text-xs text-gray-400">กรุณาตรวจสอบความถูกต้องของข้อมูล ก่อนกดดาวน์โหลดหรือพิมพ์</p>
+                                </div>
+                            </div>
+                            <button onclick="window.closePrintPreview()" class="text-gray-400 hover:text-red-400 text-2xl transition"><i class="fas fa-times"></i></button>
+                        </div>
+
+                        <!-- พื้นที่แสดงตัวอย่างเอกสาร (ใช้ Pure Inline CSS กันปัญหา Tailwind กับ html2canvas) -->
+                        <div class="flex-1 overflow-y-auto p-6 bg-gray-200 flex justify-center custom-scrollbar">
+                            <div id="printableDocument" style="background-color: #ffffff; width: 100%; max-width: 680px; padding: 40px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); color: #111827; font-family: 'Prompt', sans-serif; box-sizing: border-box;">
+                                <!-- เนื้อหา PDF จะถูกสร้างด้วย JS ที่นี่ -->
+                            </div>
+                        </div>
+
+                        <!-- Footer ปุ่มกดคำสั่ง -->
+                        <div class="p-4 md:p-6 bg-gray-50 border-t border-gray-200 flex flex-wrap justify-end gap-3 items-center">
+                            <button onclick="window.closePrintPreview()" class="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-300 transition">
+                                <i class="fas fa-times mr-1"></i> ยกเลิก
+                            </button>
+                            
+                            <!-- ปุ่มพิมพ์ผ่าน Browser (ระบบ Vector 100% ไม่พึ่งไลบรารี) -->
+                            <button onclick="window.confirmNativePrint()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm" title="พิมพ์โดยตรงหรือบันทึกเป็น PDF ผ่านระบบเบราว์เซอร์">
+                                <i class="fas fa-print"></i> พิมพ์ / บันทึก PDF (เบราว์เซอร์)
+                            </button>
+
+                            <!-- ปุ่มดาวน์โหลด PDF ผ่านไลบรารี -->
+                            <button id="downloadPdfBtn" onclick="window.confirmDownloadPDF()" class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:opacity-95 transition flex items-center gap-2 shadow-md">
+                                <i class="fas fa-file-download"></i> ดาวน์โหลดไฟล์ PDF
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Modal 2: สำหรับแก้ไขประวัติการเบิก -->
                 <div id="editWithdrawModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
                     <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative border border-gray-100">
                         <button onclick="window.closeEditWithdrawModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
@@ -227,7 +276,7 @@
                     </div>
                 </div>
 
-                <!-- Modal: แก้ไขสินค้า -->
+                <!-- Modal 3: แก้ไขสินค้า -->
                 <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
                     <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative">
                         <button onclick="window.closeEditModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
@@ -248,7 +297,7 @@
                     </div>
                 </div>
 
-                <!-- Modal: เพิ่มสต็อก -->
+                <!-- Modal 4: เพิ่มสต็อก -->
                 <div id="restockModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center fade-in backdrop-blur-sm p-4">
                     <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md relative">
                         <button onclick="window.closeRestockModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
